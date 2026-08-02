@@ -17,9 +17,9 @@ interface LogActionParams {
   moduleName: string;
   actionType: ActionType;
   actionResult: ActionResult;
-  responseTimeMs?: number;
-  errorMessage?: string;
-  metadata?: Record<string, unknown>;
+  responseTimeMs?: number | undefined;
+  errorMessage?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 interface UseActionLoggerReturn {
