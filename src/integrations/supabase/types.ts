@@ -14,16 +14,271 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      action_logs: {
+        Row: {
+          action_result: string
+          action_type: string
+          button_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          module_name: string
+          response_time_ms: number | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action_result: string
+          action_type: string
+          button_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          module_name: string
+          response_time_ms?: number | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action_result?: string
+          action_type?: string
+          button_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          module_name?: string
+          response_time_ms?: number | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          id: string
+          meta_json: Json | null
+          module: string
+          role: Database["public"]["Enums"]["app_role"] | null
+          timestamp: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          id?: string
+          meta_json?: Json | null
+          module: string
+          role?: Database["public"]["Enums"]["app_role"] | null
+          timestamp?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          id?: string
+          meta_json?: Json | null
+          module?: string
+          role?: Database["public"]["Enums"]["app_role"] | null
+          timestamp?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      developer_tasks: {
+        Row: {
+          accepted_at: string | null
+          assigned_by: string | null
+          buzzer_acknowledged_at: string | null
+          buzzer_active: boolean
+          category: string
+          client_id: string | null
+          completed_at: string | null
+          created_at: string
+          deadline: string | null
+          delivery_notes: string | null
+          description: string | null
+          developer_id: string | null
+          estimated_hours: number | null
+          id: string
+          masked_client_info: Json | null
+          max_delivery_hours: number | null
+          pause_reason: string | null
+          paused_at: string | null
+          priority: string
+          promised_at: string | null
+          started_at: string | null
+          status: string
+          tech_stack: string[]
+          title: string
+          total_paused_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          assigned_by?: string | null
+          buzzer_acknowledged_at?: string | null
+          buzzer_active?: boolean
+          category: string
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          deadline?: string | null
+          delivery_notes?: string | null
+          description?: string | null
+          developer_id?: string | null
+          estimated_hours?: number | null
+          id?: string
+          masked_client_info?: Json | null
+          max_delivery_hours?: number | null
+          pause_reason?: string | null
+          paused_at?: string | null
+          priority?: string
+          promised_at?: string | null
+          started_at?: string | null
+          status?: string
+          tech_stack?: string[]
+          title: string
+          total_paused_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          assigned_by?: string | null
+          buzzer_acknowledged_at?: string | null
+          buzzer_active?: boolean
+          category?: string
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          deadline?: string | null
+          delivery_notes?: string | null
+          description?: string | null
+          developer_id?: string | null
+          estimated_hours?: number | null
+          id?: string
+          masked_client_info?: Json | null
+          max_delivery_hours?: number | null
+          pause_reason?: string | null
+          paused_at?: string | null
+          priority?: string
+          promised_at?: string | null
+          started_at?: string | null
+          status?: string
+          tech_stack?: string[]
+          title?: string
+          total_paused_minutes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "developer_tasks_developer_id_fkey"
+            columns: ["developer_id"]
+            isOneToOne: false
+            referencedRelation: "developers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      developers: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          joined_at: string | null
+          onboarding_completed: boolean
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          joined_at?: string | null
+          onboarding_completed?: boolean
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          joined_at?: string | null
+          onboarding_completed?: boolean
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          approval_status: string
+          created_at: string
+          force_logged_out_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approval_status?: string
+          created_at?: string
+          force_logged_out_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approval_status?: string
+          created_at?: string
+          force_logged_out_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_force_logout: { Args: { check_user_id: string }; Returns: boolean }
+      clear_force_logout: {
+        Args: { clear_user_id: string }
+        Returns: undefined
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_dev_manager: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "boss_owner"
+        | "ceo"
+        | "prime"
+        | "dev_manager"
+        | "developer"
+        | "client"
+        | "franchise"
+        | "reseller"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +405,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "boss_owner",
+        "ceo",
+        "prime",
+        "dev_manager",
+        "developer",
+        "client",
+        "franchise",
+        "reseller",
+      ],
+    },
   },
 } as const
