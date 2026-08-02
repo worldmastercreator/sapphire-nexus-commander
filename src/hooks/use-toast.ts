@@ -3,10 +3,10 @@ import { toast as sonnerToast } from "sonner";
 type ToastVariant = "default" | "destructive" | "success";
 
 export interface ToastOptions {
-  title?: string;
-  description?: string;
-  variant?: ToastVariant;
-  duration?: number;
+  title?: string | undefined;
+  description?: string | undefined;
+  variant?: ToastVariant | undefined;
+  duration?: number | undefined;
 }
 
 /**
@@ -15,7 +15,9 @@ export interface ToastOptions {
  */
 export function toast({ title, description, variant = "default", duration }: ToastOptions) {
   const message = title ?? description ?? "";
-  const opts = { description: title ? description : undefined, duration };
+  const opts: { description?: string; duration?: number } = {};
+  if (title && description) opts.description = description;
+  if (duration !== undefined) opts.duration = duration;
 
   if (variant === "destructive") return sonnerToast.error(message, opts);
   if (variant === "success") return sonnerToast.success(message, opts);
