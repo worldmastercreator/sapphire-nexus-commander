@@ -133,6 +133,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchRole]);
 
+  // Session timeout enforcement: 30 minutes of inactivity signs the user out,
+  // with a warning 5 minutes before.
+  useEffect(() => {
+    if (!session) return;
+    const IDLE_MS = 30 * 60 * 1000;
+    const WARN_MS = 25 * 60 * 1000;
+    let warnTimer: ReturnType<typeof setTimeout>;
+    let idleTimer: ReturnType<typeof setTimeout>;
+
+    const schedule = () => {
+      clearTimeout(warnTimer);
+      clearTimeout(idleTimer);
+      warnTimer = setTimeout(() => {
+        void import("@/hooks/use-toast").then(({ toast }) =>
+          toast({
+            title: "Session expiring",
+            description: "You will be signed out in 5 minutes due to inactivity.",
+            variant: "destructive",
+          }),
+        );
+      }, WARN_MS);
+      idleTimer = setTimeout(() => {
+        void supabase.auth.signOut();
+      }, IDLE_MS);
+    };
+
+    const events = ["mousedown", "keydown", "touchstart", "scroll", "visibilitychange"];
+    events.forEach((e) => window.addEventListener(e, schedule, { passive: true }));
+    schedule();
+
+    return () => {
+      clearTimeout(warnTimer);
+      clearTimeout(idleTimer);
+      events.forEach((e) => window.removeEventListener(e, schedule));
+    };
+  }, [session]);
+
   const signUp: AuthContextType["signUp"] = async (email, password, role, fullName) => {
     try {
       const { data, error } = await supabase.auth.signUp({
