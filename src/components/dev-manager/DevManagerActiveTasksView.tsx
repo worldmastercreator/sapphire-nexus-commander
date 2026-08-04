@@ -20,72 +20,61 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useDeliveryOverview, useReassignTask } from '@/hooks/useDevManagerData';
+import type { TaskDTO } from '@/lib/dev-manager.types';
 
-interface Task {
-  id: string;
-  title: string;
-  assignedTo: string;
-  priority: 'critical' | 'high' | 'medium' | 'low';
-  status: 'pending' | 'in_progress' | 'blocked' | 'review';
-  dueDate: string;
-  slaHoursRemaining: number;
-  promiseId?: string;
-}
-
-const mockTasks: Task[] = [
-  { id: 'TSK-4821', title: 'API Integration Module', assignedTo: 'DEV-7842', priority: 'high', status: 'in_progress', dueDate: '2025-01-02', slaHoursRemaining: 8, promiseId: 'PRM-112' },
-  { id: 'TSK-4822', title: 'Database Migration', assignedTo: 'DEV-3291', priority: 'critical', status: 'pending', dueDate: '2025-01-01', slaHoursRemaining: 2, promiseId: 'PRM-115' },
-  { id: 'TSK-4823', title: 'UI Component Library', assignedTo: 'DEV-5104', priority: 'medium', status: 'blocked', dueDate: '2025-01-03', slaHoursRemaining: 24 },
-  { id: 'TSK-4824', title: 'Auth Flow Refactor', assignedTo: 'DEV-8877', priority: 'high', status: 'review', dueDate: '2025-01-02', slaHoursRemaining: 12, promiseId: 'PRM-118' },
-];
-
-const developers = ['DEV-7842', 'DEV-3291', 'DEV-5104', 'DEV-8877'];
-
-const getPriorityColor = (priority: Task['priority']) => {
+const getPriorityColor = (priority: TaskDTO['priority']) => {
   switch (priority) {
     case 'critical': return 'bg-red-500/20 text-red-400 border-red-500/30';
     case 'high': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
     case 'medium': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-    case 'low': return 'bg-muted/40 text-muted-foreground border-border';
+    default: return 'bg-muted/40 text-muted-foreground border-border';
   }
 };
 
-const getStatusColor = (status: Task['status']) => {
+const getStatusColor = (status: TaskDTO['status']) => {
   switch (status) {
-    case 'pending': return 'bg-muted-foreground';
     case 'in_progress': return 'bg-blue-500';
     case 'blocked': return 'bg-red-500';
     case 'review': return 'bg-purple-500';
+    default: return 'bg-muted-foreground';
   }
 };
 
 export default function DevManagerActiveTasksView() {
   const { toast } = useToast();
-  const [reassignDialog, setReassignDialog] = useState<Task | null>(null);
+  const { data, isLoading, error } = useDeliveryOverview();
+  const reassign = useReassignTask();
+  const [reassignDialog, setReassignDialog] = useState<TaskDTO | null>(null);
   const [newAssignee, setNewAssignee] = useState('');
   const [reassignReason, setReassignReason] = useState('');
 
-  const handleReassign = () => {
-    if (!newAssignee || !reassignReason.trim()) {
+  const tasks = data?.tasks ?? [];
+  const developers = data?.developers ?? [];
+
+  const handleReassign = async () => {
+    if (!reassignDialog) return;
+    if (!newAssignee || reassignReason.trim().length < 5) {
       toast({
         title: "Reason Required",
-        description: "Reassignment reason is mandatory.",
+        description: "Select a developer and give a reason (min 5 characters).",
         variant: "destructive"
       });
       return;
     }
 
-    // Log the reassignment action
-    console.log(`[AUDIT] Task ${reassignDialog?.id} reassigned from ${reassignDialog?.assignedTo} to ${newAssignee}. Reason: ${reassignReason}`);
-
-    toast({
-      title: "Task Reassigned",
-      description: `${reassignDialog?.id} → ${newAssignee}`,
-    });
-
-    setReassignDialog(null);
-    setNewAssignee('');
-    setReassignReason('');
+    try {
+      await reassign.mutateAsync({
+        taskId: reassignDialog.id,
+        newDeveloperId: newAssignee,
+        reason: reassignReason.trim(),
+      });
+      setReassignDialog(null);
+      setNewAssignee('');
+      setReassignReason('');
+    } catch {
+      // failure surfaced by the mutation's error toast
+    }
   };
 
   return (
@@ -97,12 +86,18 @@ export default function DevManagerActiveTasksView() {
               ACTIVE TASKS BY DEVELOPER
             </CardTitle>
             <Badge variant="outline" className="font-mono">
-              {mockTasks.length} Active
+              {tasks.length} Active
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {mockTasks.map((task, idx) => (
+          {isLoading && <p className="text-sm text-muted-foreground font-mono">Loading live tasks…</p>}
+          {error && (
+            <p className="text-sm text-red-400 font-mono">
+              {error instanceof Error ? error.message : 'Failed to load tasks'}
+            </p>
+          )}
+          {tasks.map((task, idx) => (
             <motion.div
               key={task.id}
               initial={{ opacity: 0, y: 10 }}
@@ -113,7 +108,7 @@ export default function DevManagerActiveTasksView() {
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-xs text-muted-foreground">{task.id}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{task.code}</span>
                     <Badge className={`text-xs ${getPriorityColor(task.priority)}`}>
                       {task.priority.toUpperCase()}
                     </Badge>
@@ -161,6 +156,9 @@ export default function DevManagerActiveTasksView() {
               )}
             </motion.div>
           ))}
+          {!isLoading && !error && tasks.length === 0 && (
+            <p className="text-sm text-muted-foreground">No active tasks.</p>
+          )}
         </CardContent>
       </Card>
 
@@ -169,7 +167,7 @@ export default function DevManagerActiveTasksView() {
         <DialogContent className="bg-card border-border">
           <DialogHeader>
             <DialogTitle className="font-mono">
-              Reassign Task {reassignDialog?.id}
+              Reassign Task {reassignDialog?.code}
             </DialogTitle>
           </DialogHeader>
 
@@ -187,10 +185,10 @@ export default function DevManagerActiveTasksView() {
                 </SelectTrigger>
                 <SelectContent className="bg-muted border-border">
                   {developers
-                    .filter(d => d !== reassignDialog?.assignedTo)
+                    .filter(d => d.id !== reassignDialog?.developerId)
                     .map(dev => (
-                      <SelectItem key={dev} value={dev} className="font-mono">
-                        {dev}
+                      <SelectItem key={dev.id} value={dev.id} className="font-mono">
+                        {dev.valaId} — {dev.activeTasks}/{dev.maxCapacity}
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -214,9 +212,9 @@ export default function DevManagerActiveTasksView() {
             <Button variant="ghost" onClick={() => setReassignDialog(null)}>
               Cancel
             </Button>
-            <Button onClick={handleReassign} className="gap-2">
+            <Button onClick={handleReassign} disabled={reassign.isPending} className="gap-2">
               <ArrowRight className="w-4 h-4" />
-              Confirm Reassignment
+              {reassign.isPending ? 'Saving…' : 'Confirm Reassignment'}
             </Button>
           </DialogFooter>
         </DialogContent>
