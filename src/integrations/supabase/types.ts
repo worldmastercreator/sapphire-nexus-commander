@@ -93,6 +93,8 @@ export type Database = {
         Row: {
           accepted_at: string | null
           assigned_by: string | null
+          blocked_reason: string | null
+          blocked_since: string | null
           buzzer_acknowledged_at: string | null
           buzzer_active: boolean
           category: string
@@ -103,6 +105,7 @@ export type Database = {
           delivery_notes: string | null
           description: string | null
           developer_id: string | null
+          escalate_threshold_hours: number
           estimated_hours: number | null
           id: string
           masked_client_info: Json | null
@@ -110,7 +113,9 @@ export type Database = {
           pause_reason: string | null
           paused_at: string | null
           priority: string
+          promise_id: string | null
           promised_at: string | null
+          quality_score: number | null
           started_at: string | null
           status: string
           tech_stack: string[]
@@ -121,6 +126,8 @@ export type Database = {
         Insert: {
           accepted_at?: string | null
           assigned_by?: string | null
+          blocked_reason?: string | null
+          blocked_since?: string | null
           buzzer_acknowledged_at?: string | null
           buzzer_active?: boolean
           category: string
@@ -131,6 +138,7 @@ export type Database = {
           delivery_notes?: string | null
           description?: string | null
           developer_id?: string | null
+          escalate_threshold_hours?: number
           estimated_hours?: number | null
           id?: string
           masked_client_info?: Json | null
@@ -138,7 +146,9 @@ export type Database = {
           pause_reason?: string | null
           paused_at?: string | null
           priority?: string
+          promise_id?: string | null
           promised_at?: string | null
+          quality_score?: number | null
           started_at?: string | null
           status?: string
           tech_stack?: string[]
@@ -149,6 +159,8 @@ export type Database = {
         Update: {
           accepted_at?: string | null
           assigned_by?: string | null
+          blocked_reason?: string | null
+          blocked_since?: string | null
           buzzer_acknowledged_at?: string | null
           buzzer_active?: boolean
           category?: string
@@ -159,6 +171,7 @@ export type Database = {
           delivery_notes?: string | null
           description?: string | null
           developer_id?: string | null
+          escalate_threshold_hours?: number
           estimated_hours?: number | null
           id?: string
           masked_client_info?: Json | null
@@ -166,7 +179,9 @@ export type Database = {
           pause_reason?: string | null
           paused_at?: string | null
           priority?: string
+          promise_id?: string | null
           promised_at?: string | null
+          quality_score?: number | null
           started_at?: string | null
           status?: string
           tech_stack?: string[]
@@ -186,39 +201,136 @@ export type Database = {
       }
       developers: {
         Row: {
+          availability: string
           created_at: string
           email: string
           full_name: string
           id: string
           joined_at: string | null
+          max_capacity: number
           onboarding_completed: boolean
+          skill_tags: string[]
           status: string
           updated_at: string
-          user_id: string
+          user_id: string | null
+          vala_id: string | null
         }
         Insert: {
+          availability?: string
           created_at?: string
           email: string
           full_name: string
           id?: string
           joined_at?: string | null
+          max_capacity?: number
           onboarding_completed?: boolean
+          skill_tags?: string[]
           status?: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
+          vala_id?: string | null
         }
         Update: {
+          availability?: string
           created_at?: string
           email?: string
           full_name?: string
           id?: string
           joined_at?: string | null
+          max_capacity?: number
           onboarding_completed?: boolean
+          skill_tags?: string[]
           status?: string
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
+          vala_id?: string | null
         }
         Relationships: []
+      }
+      escalations: {
+        Row: {
+          auto_escalated: boolean
+          created_at: string
+          escalated_by: string | null
+          escalated_to: string
+          id: string
+          reason: string
+          resolution: string | null
+          resolved_at: string | null
+          status: string
+          task_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          auto_escalated?: boolean
+          created_at?: string
+          escalated_by?: string | null
+          escalated_to?: string
+          id?: string
+          reason: string
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: string
+          task_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          auto_escalated?: boolean
+          created_at?: string
+          escalated_by?: string | null
+          escalated_to?: string
+          id?: string
+          reason?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: string
+          task_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escalations_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "developer_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_internal_notes: {
+        Row: {
+          author_id: string | null
+          author_label: string | null
+          content: string
+          created_at: string
+          id: string
+          task_id: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          author_label?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          task_id?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          author_label?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_internal_notes_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "developer_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
