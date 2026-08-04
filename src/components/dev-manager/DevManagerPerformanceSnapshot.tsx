@@ -1,31 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, BarChart3, Clock, CheckCircle, XCircle, Lock } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, Clock, CheckCircle, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { useDeliveryOverview } from '@/hooks/useDevManagerData';
+import type { DeveloperPerformanceDTO } from '@/lib/dev-manager.types';
 
-interface DeveloperPerformance {
-  valaId: string;
-  completedTasks: number;
-  onTimeRate: number;
-  avgCompletionTime: number;
-  qualityScore: number;
-  trend: 'up' | 'down' | 'stable';
-}
-
-const mockPerformance: DeveloperPerformance[] = [
-  { valaId: 'DEV-7842', completedTasks: 24, onTimeRate: 92, avgCompletionTime: 4.2, qualityScore: 88, trend: 'up' },
-  { valaId: 'DEV-3291', completedTasks: 18, onTimeRate: 85, avgCompletionTime: 5.1, qualityScore: 91, trend: 'stable' },
-  { valaId: 'DEV-5104', completedTasks: 31, onTimeRate: 78, avgCompletionTime: 6.3, qualityScore: 82, trend: 'down' },
-  { valaId: 'DEV-8877', completedTasks: 22, onTimeRate: 95, avgCompletionTime: 3.8, qualityScore: 94, trend: 'up' },
-];
-
-const getTrendIcon = (trend: DeveloperPerformance['trend']) => {
+const getTrendIcon = (trend: DeveloperPerformanceDTO['trend']) => {
   switch (trend) {
     case 'up': return <TrendingUp className="w-4 h-4 text-emerald-400" />;
     case 'down': return <TrendingDown className="w-4 h-4 text-red-400" />;
-    case 'stable': return <BarChart3 className="w-4 h-4 text-muted-foreground" />;
+    default: return <BarChart3 className="w-4 h-4 text-muted-foreground" />;
   }
 };
 
@@ -36,9 +22,16 @@ const getScoreColor = (score: number) => {
 };
 
 export default function DevManagerPerformanceSnapshot() {
-  const avgOnTimeRate = Math.round(mockPerformance.reduce((sum, d) => sum + d.onTimeRate, 0) / mockPerformance.length);
-  const avgQualityScore = Math.round(mockPerformance.reduce((sum, d) => sum + d.qualityScore, 0) / mockPerformance.length);
-  const totalCompleted = mockPerformance.reduce((sum, d) => sum + d.completedTasks, 0);
+  const { data, isLoading, error } = useDeliveryOverview();
+  const performance = data?.performance ?? [];
+
+  const avgOnTimeRate = performance.length
+    ? Math.round(performance.reduce((sum, d) => sum + d.onTimeRate, 0) / performance.length)
+    : 0;
+  const avgQualityScore = performance.length
+    ? Math.round(performance.reduce((sum, d) => sum + d.qualityScore, 0) / performance.length)
+    : 0;
+  const totalCompleted = performance.reduce((sum, d) => sum + d.completedTasks, 0);
 
   return (
     <div className="space-y-4">
@@ -81,7 +74,13 @@ export default function DevManagerPerformanceSnapshot() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {mockPerformance.map((dev, idx) => (
+          {isLoading && <p className="text-sm text-muted-foreground font-mono">Loading performance…</p>}
+          {error && (
+            <p className="text-sm text-red-400 font-mono">
+              {error instanceof Error ? error.message : 'Failed to load performance'}
+            </p>
+          )}
+          {performance.map((dev, idx) => (
             <motion.div
               key={dev.valaId}
               initial={{ opacity: 0, x: -10 }}
@@ -125,6 +124,9 @@ export default function DevManagerPerformanceSnapshot() {
               </div>
             </motion.div>
           ))}
+          {!isLoading && !error && performance.length === 0 && (
+            <p className="text-sm text-muted-foreground">No completed tasks in the last 30 days.</p>
+          )}
         </CardContent>
       </Card>
     </div>

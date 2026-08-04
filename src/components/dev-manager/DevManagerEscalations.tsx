@@ -1,50 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Clock, User, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useDeliveryOverview, useUpdateEscalation } from '@/hooks/useDevManagerData';
+import type { EscalationDTO } from '@/lib/dev-manager.types';
 
-interface Escalation {
-  id: string;
-  taskId: string;
-  reason: string;
-  escalatedTo: string;
-  escalatedAt: string;
-  status: 'pending' | 'acknowledged' | 'resolved' | 'rejected';
-  resolvedAt?: string;
-  resolution?: string;
-}
-
-const mockEscalations: Escalation[] = [
-  {
-    id: 'ESC-001',
-    taskId: 'TSK-4822',
-    reason: 'Critical SLA breach - Database migration deadline exceeded',
-    escalatedTo: 'AREA-MGR-112',
-    escalatedAt: '2024-12-31T14:30:00Z',
-    status: 'pending'
-  },
-  {
-    id: 'ESC-002',
-    taskId: 'TSK-4823',
-    reason: 'Blocked for 36+ hours - External dependency',
-    escalatedTo: 'AREA-MGR-112',
-    escalatedAt: '2024-12-31T10:00:00Z',
-    status: 'acknowledged'
-  },
-  {
-    id: 'ESC-003',
-    taskId: 'TSK-4820',
-    reason: 'Quality score below threshold',
-    escalatedTo: 'AREA-MGR-112',
-    escalatedAt: '2024-12-30T16:00:00Z',
-    status: 'resolved',
-    resolvedAt: '2024-12-31T09:00:00Z',
-    resolution: 'Developer assigned additional review cycle'
-  },
-];
-
-const getStatusConfig = (status: Escalation['status']) => {
+const getStatusConfig = (status: EscalationDTO['status']) => {
   switch (status) {
     case 'pending':
       return { color: 'bg-amber-500/20 text-amber-400', icon: Clock };
@@ -52,14 +16,19 @@ const getStatusConfig = (status: Escalation['status']) => {
       return { color: 'bg-blue-500/20 text-blue-400', icon: User };
     case 'resolved':
       return { color: 'bg-emerald-500/20 text-emerald-400', icon: CheckCircle };
-    case 'rejected':
+    default:
       return { color: 'bg-red-500/20 text-red-400', icon: XCircle };
   }
 };
 
 export default function DevManagerEscalations() {
-  const pendingCount = mockEscalations.filter(e => e.status === 'pending').length;
-  const acknowledgedCount = mockEscalations.filter(e => e.status === 'acknowledged').length;
+  const { data, isLoading, error } = useDeliveryOverview();
+  const update = useUpdateEscalation();
+  const [resolutions, setResolutions] = useState<Record<string, string>>({});
+
+  const escalations = data?.escalations ?? [];
+  const pendingCount = escalations.filter(e => e.status === 'pending').length;
+  const acknowledgedCount = escalations.filter(e => e.status === 'acknowledged').length;
 
   return (
     <Card className="bg-card/60 border-border">
@@ -71,20 +40,22 @@ export default function DevManagerEscalations() {
           </CardTitle>
           <div className="flex gap-2">
             {pendingCount > 0 && (
-              <Badge className="bg-amber-500/20 text-amber-400">
-                {pendingCount} Pending
-              </Badge>
+              <Badge className="bg-amber-500/20 text-amber-400">{pendingCount} Pending</Badge>
             )}
             {acknowledgedCount > 0 && (
-              <Badge className="bg-blue-500/20 text-blue-400">
-                {acknowledgedCount} In Progress
-              </Badge>
+              <Badge className="bg-blue-500/20 text-blue-400">{acknowledgedCount} In Progress</Badge>
             )}
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {mockEscalations.map((escalation, idx) => {
+        {isLoading && <p className="text-sm text-muted-foreground font-mono">Loading escalations…</p>}
+        {error && (
+          <p className="text-sm text-red-400 font-mono">
+            {error instanceof Error ? error.message : 'Failed to load escalations'}
+          </p>
+        )}
+        {escalations.map((escalation, idx) => {
           const statusConfig = getStatusConfig(escalation.status);
           const StatusIcon = statusConfig.icon;
 
@@ -98,9 +69,12 @@ export default function DevManagerEscalations() {
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-muted-foreground">{escalation.id}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{escalation.shortId}</span>
                   <span className="text-muted-foreground">→</span>
-                  <span className="font-mono text-xs">{escalation.taskId}</span>
+                  <span className="font-mono text-xs">{escalation.taskCode}</span>
+                  {escalation.autoEscalated && (
+                    <Badge variant="outline" className="text-[10px]">AUTO</Badge>
+                  )}
                 </div>
                 <Badge className={`text-xs ${statusConfig.color}`}>
                   <StatusIcon className="w-3 h-3 mr-1" />
@@ -115,8 +89,52 @@ export default function DevManagerEscalations() {
                   <ArrowUpRight className="w-3 h-3" />
                   <span className="font-mono">{escalation.escalatedTo}</span>
                 </div>
-                <span>{new Date(escalation.escalatedAt).toLocaleDateString()}</span>
+                <span>{new Date(escalation.escalatedAt).toLocaleString()}</span>
               </div>
+
+              {escalation.status === 'pending' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-3 w-full"
+                  disabled={update.isPending}
+                  onClick={() =>
+                    update.mutate({
+                      escalationId: escalation.id,
+                      status: 'acknowledged',
+                      resolution: null,
+                    })
+                  }
+                >
+                  Acknowledge
+                </Button>
+              )}
+
+              {escalation.status === 'acknowledged' && (
+                <div className="mt-3 flex gap-2">
+                  <Input
+                    value={resolutions[escalation.id] ?? ''}
+                    onChange={(e) =>
+                      setResolutions((prev) => ({ ...prev, [escalation.id]: e.target.value }))
+                    }
+                    placeholder="Resolution note…"
+                    className="text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    disabled={update.isPending}
+                    onClick={() =>
+                      update.mutate({
+                        escalationId: escalation.id,
+                        status: 'resolved',
+                        resolution: resolutions[escalation.id]?.trim() || null,
+                      })
+                    }
+                  >
+                    Resolve
+                  </Button>
+                </div>
+              )}
 
               {escalation.resolution && (
                 <div className="mt-3 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded">
@@ -130,7 +148,7 @@ export default function DevManagerEscalations() {
           );
         })}
 
-        {mockEscalations.length === 0 && (
+        {!isLoading && !error && escalations.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No escalations</p>

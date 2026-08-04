@@ -6,64 +6,35 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-
-interface InternalNote {
-  id: string;
-  taskId: string;
-  author: string;
-  content: string;
-  timestamp: string;
-}
-
-const mockNotes: InternalNote[] = [
-  {
-    id: 'NOTE-001',
-    taskId: 'TSK-4822',
-    author: 'DEV-MGR-445',
-    content: 'Reassigned from DEV-5104 due to capacity overload. DEV-3291 has relevant experience.',
-    timestamp: '2024-12-31T15:30:00Z'
-  },
-  {
-    id: 'NOTE-002',
-    taskId: 'TSK-4823',
-    author: 'DEV-MGR-445',
-    content: 'External design team notified about blocking dependency. Expected resolution by EOD.',
-    timestamp: '2024-12-31T14:00:00Z'
-  },
-  {
-    id: 'NOTE-003',
-    taskId: 'TSK-4825',
-    author: 'DEV-MGR-445',
-    content: 'Priority escalated due to client-facing impact. Daily standup check-in added.',
-    timestamp: '2024-12-31T10:00:00Z'
-  },
-];
+import { useAddInternalNote, useDeliveryOverview } from '@/hooks/useDevManagerData';
 
 export default function DevManagerInternalComms() {
   const { toast } = useToast();
+  const { data, isLoading, error } = useDeliveryOverview();
+  const addNote = useAddInternalNote();
   const [newNote, setNewNote] = useState('');
   const [selectedTask, setSelectedTask] = useState('');
 
-  const handleAddNote = () => {
-    if (!newNote.trim() || !selectedTask) {
+  const notes = data?.notes ?? [];
+  const taskOptions = data?.taskOptions ?? [];
+
+  const handleAddNote = async () => {
+    if (newNote.trim().length < 3 || !selectedTask) {
       toast({
         title: "Missing Information",
-        description: "Select a task and enter a note.",
+        description: "Select a task and enter a note (min 3 characters).",
         variant: "destructive"
       });
       return;
     }
 
-    // Log the note
-    console.log(`[AUDIT] Internal note added for ${selectedTask} at ${new Date().toISOString()}`);
-
-    toast({
-      title: "Note Added",
-      description: `Internal note logged for ${selectedTask}`,
-    });
-
-    setNewNote('');
-    setSelectedTask('');
+    try {
+      await addNote.mutateAsync({ taskId: selectedTask, content: newNote.trim() });
+      setNewNote('');
+      setSelectedTask('');
+    } catch {
+      // failure surfaced by the mutation's error toast
+    }
   };
 
   return (
@@ -89,10 +60,11 @@ export default function DevManagerInternalComms() {
             className="w-full p-2 bg-card border border-border rounded text-sm"
           >
             <option value="">Select Task...</option>
-            <option value="TSK-4821">TSK-4821 - API Integration</option>
-            <option value="TSK-4822">TSK-4822 - Database Migration</option>
-            <option value="TSK-4823">TSK-4823 - UI Component Library</option>
-            <option value="TSK-4824">TSK-4824 - Auth Flow Refactor</option>
+            {taskOptions.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.code} - {t.title}
+              </option>
+            ))}
           </select>
           <Textarea
             value={newNote}
@@ -103,16 +75,23 @@ export default function DevManagerInternalComms() {
           <Button
             size="sm"
             onClick={handleAddNote}
+            disabled={addNote.isPending}
             className="w-full gap-2"
           >
             <Send className="w-3.5 h-3.5" />
-            Add Note
+            {addNote.isPending ? 'Saving…' : 'Add Note'}
           </Button>
         </div>
 
         {/* Notes List */}
         <div className="space-y-3">
-          {mockNotes.map((note, idx) => (
+          {isLoading && <p className="text-sm text-muted-foreground font-mono">Loading notes…</p>}
+          {error && (
+            <p className="text-sm text-red-400 font-mono">
+              {error instanceof Error ? error.message : 'Failed to load notes'}
+            </p>
+          )}
+          {notes.map((note, idx) => (
             <motion.div
               key={note.id}
               initial={{ opacity: 0, y: 10 }}
@@ -123,7 +102,7 @@ export default function DevManagerInternalComms() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="font-mono text-xs">
-                    {note.taskId}
+                    {note.taskCode}
                   </Badge>
                   <span className="text-xs text-muted-foreground font-mono">{note.author}</span>
                 </div>
@@ -135,6 +114,9 @@ export default function DevManagerInternalComms() {
               <p className="text-sm text-foreground/80">{note.content}</p>
             </motion.div>
           ))}
+          {!isLoading && !error && notes.length === 0 && (
+            <p className="text-sm text-muted-foreground">No internal notes yet.</p>
+          )}
         </div>
       </CardContent>
     </Card>

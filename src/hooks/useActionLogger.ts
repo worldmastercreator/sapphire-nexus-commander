@@ -63,8 +63,14 @@ export function useActionLogger(): UseActionLoggerReturn {
           await new Promise(resolve => setTimeout(resolve, retryCount * 100));
           return attemptLog();
         }
-        // Silent fail after retries - logging should never break the app
+        // Never break the app, but never fail silently either.
         console.error('[ActionLogger] Failed to log action after retries:', error);
+        const { toast } = await import('@/hooks/use-toast');
+        toast({
+          title: 'Audit log failed',
+          description: `Action "${params.buttonId}" could not be recorded.`,
+          variant: 'destructive',
+        });
       }
     };
     

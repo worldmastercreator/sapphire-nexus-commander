@@ -4,48 +4,18 @@ import { AlertOctagon, Clock, ArrowUpRight, MessageSquare } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-
-interface BlockedTask {
-  taskId: string;
-  title: string;
-  assignee: string;
-  blockedReason: string;
-  blockedSince: string;
-  blockedHours: number;
-  autoEscalateThreshold: number;
-}
-
-const mockBlockedTasks: BlockedTask[] = [
-  { 
-    taskId: 'TSK-4823', 
-    title: 'UI Component Library', 
-    assignee: 'DEV-5104', 
-    blockedReason: 'Waiting for design assets from external team',
-    blockedSince: '2024-12-30T10:00:00Z',
-    blockedHours: 36,
-    autoEscalateThreshold: 24
-  },
-  { 
-    taskId: 'TSK-4827', 
-    title: 'Third-party API Integration', 
-    assignee: 'DEV-7842', 
-    blockedReason: 'API credentials pending approval',
-    blockedSince: '2024-12-31T08:00:00Z',
-    blockedHours: 12,
-    autoEscalateThreshold: 24
-  },
-];
+import { useDeliveryOverview, useEscalateTask } from '@/hooks/useDevManagerData';
+import type { BlockedTaskDTO } from '@/lib/dev-manager.types';
 
 export default function DevManagerBlockedTasks() {
-  const { toast } = useToast();
+  const { data, isLoading, error } = useDeliveryOverview();
+  const escalate = useEscalateTask();
+  const blockedTasks = data?.blocked ?? [];
 
-  const handleEscalate = (task: BlockedTask) => {
-    console.log(`[AUDIT] Manual escalation for blocked task ${task.taskId} at ${new Date().toISOString()}`);
-    
-    toast({
-      title: "Escalation Triggered",
-      description: `${task.taskId} escalated to upper management`,
+  const handleEscalate = (task: BlockedTaskDTO) => {
+    escalate.mutate({
+      taskId: task.taskId,
+      reason: `Manual escalation: ${task.code} blocked ${task.blockedHours}h — ${task.blockedReason}`,
     });
   };
 
@@ -58,14 +28,20 @@ export default function DevManagerBlockedTasks() {
             BLOCKED TASKS
           </CardTitle>
           <Badge variant="outline" className="font-mono text-red-400 border-red-500/30">
-            {mockBlockedTasks.length} Blocked
+            {blockedTasks.length} Blocked
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {mockBlockedTasks.map((task, idx) => {
-          const isAutoEscalated = task.blockedHours >= task.autoEscalateThreshold;
-          
+        {isLoading && <p className="text-sm text-muted-foreground font-mono">Loading blocked tasks…</p>}
+        {error && (
+          <p className="text-sm text-red-400 font-mono">
+            {error instanceof Error ? error.message : 'Failed to load blocked tasks'}
+          </p>
+        )}
+        {blockedTasks.map((task, idx) => {
+          const isAutoEscalated = task.escalated || task.blockedHours >= task.autoEscalateThreshold;
+
           return (
             <motion.div
               key={task.taskId}
@@ -73,18 +49,18 @@ export default function DevManagerBlockedTasks() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
               className={`p-4 rounded-lg border ${
-                isAutoEscalated 
-                  ? 'border-red-500/50 bg-red-500/10' 
+                isAutoEscalated
+                  ? 'border-red-500/50 bg-red-500/10'
                   : 'border-amber-500/30 bg-amber-500/5'
               }`}
             >
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-xs">{task.taskId}</span>
+                    <span className="font-mono text-xs">{task.code}</span>
                     {isAutoEscalated && (
                       <Badge className="text-xs bg-red-500/20 text-red-400">
-                        AUTO-ESCALATED
+                        ESCALATED
                       </Badge>
                     )}
                   </div>
@@ -113,11 +89,12 @@ export default function DevManagerBlockedTasks() {
                 </div>
               </div>
 
-              {!isAutoEscalated && (
+              {!task.escalated && (
                 <Button
                   size="sm"
                   variant="outline"
                   className="w-full gap-2 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                  disabled={escalate.isPending}
                   onClick={() => handleEscalate(task)}
                 >
                   <ArrowUpRight className="w-3.5 h-3.5" />
@@ -128,7 +105,7 @@ export default function DevManagerBlockedTasks() {
           );
         })}
 
-        {mockBlockedTasks.length === 0 && (
+        {!isLoading && !error && blockedTasks.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <AlertOctagon className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No blocked tasks</p>
