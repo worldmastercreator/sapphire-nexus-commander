@@ -519,3 +519,45 @@ export async function addInternalNoteInDb(
 
   return { ok: true as const };
 }
+
+/** Enterprise audit trail: paginated, filterable, read-only. */
+export async function loadAuditTrail(
+  supabase: Db,
+  page: number,
+  pageSize: number,
+  search: string,
+  moduleFilter: string,
+): Promise<import("./dev-manager.types").AuditTrailDTO> {
+  const from = (page - 1) * pageSize;
+  let query = supabase
+    .from("audit_logs")
+    .select("id, module, action, user_id, role, meta_json, timestamp", { count: "exact" })
+    .order("timestamp", { ascending: false });
+
+  if (moduleFilter && moduleFilter !== "all") query = query.eq("module", moduleFilter);
+  if (search.trim()) query = query.ilike("action", `%${search.trim()}%`);
+
+  const { data, error, count } = await query.range(from, from + pageSize - 1);
+  if (error) throw new Error(`Audit trail unavailable: ${error.message}`);
+
+  const entries = (data ?? []).map((row) => {
+    const meta = (row.meta_json ?? null) as Record<string, unknown> | null;
+    const target =
+      (meta?.["taskCode"] as string | undefined) ??
+      (meta?.["taskId"] as string | undefined) ??
+      (meta?.["escalationId"] as string | undefined) ??
+      "—";
+    return {
+      id: row.id,
+      shortId: `LOG-${row.id.slice(0, 8).toUpperCase()}`,
+      module: row.module,
+      action: row.action,
+      actor: row.role ? `${row.role}` : (row.user_id ?? "system").slice(0, 8),
+      target,
+      timestamp: row.timestamp,
+      meta,
+    };
+  });
+
+  return { entries, total: count ?? entries.length, page, pageSize };
+}
