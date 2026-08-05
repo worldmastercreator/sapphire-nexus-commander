@@ -13,11 +13,12 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   addInternalNote,
   escalateTask,
+  getAuditTrail,
   getDeliveryOverview,
   reassignTask,
   updateEscalation,
 } from "@/lib/dev-manager.functions";
-import type { DeliveryOverviewDTO, EscalationStatus } from "@/lib/dev-manager.types";
+import type { AuditTrailDTO, DeliveryOverviewDTO, EscalationStatus } from "@/lib/dev-manager.types";
 
 export const DELIVERY_QUERY_KEY = ["dev-manager", "delivery-overview"] as const;
 
@@ -131,4 +132,26 @@ export function useAddInternalNote() {
     fn as never,
     "Internal note added",
   );
+}
+
+export const AUDIT_QUERY_KEY = ["dev-manager", "audit-trail"] as const;
+
+export function useAuditTrail(params: {
+  page: number;
+  pageSize: number;
+  search: string;
+  module: string;
+}) {
+  const fetchAudit = useServerFn(getAuditTrail);
+  const { session, loading: authLoading } = useAuth();
+
+  return useQuery<AuditTrailDTO>({
+    queryKey: [...AUDIT_QUERY_KEY, params],
+    queryFn: () => fetchAudit({ data: params }),
+    enabled: !authLoading && !!session,
+    retry: (count, error) =>
+      !/Unauthorized|Forbidden/.test(error instanceof Error ? error.message : "") && count < 2,
+    staleTime: 10_000,
+    placeholderData: (prev) => prev,
+  });
 }
