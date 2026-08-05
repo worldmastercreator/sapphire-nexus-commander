@@ -51,9 +51,44 @@ export default function DevManagerActiveTasksView() {
   const [reassignDialog, setReassignDialog] = useState<TaskDTO | null>(null);
   const [newAssignee, setNewAssignee] = useState('');
   const [reassignReason, setReassignReason] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
 
   const tasks = data?.tasks ?? [];
   const developers = data?.developers ?? [];
+
+  const visibleTasks = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return tasks.filter((task) => {
+      const matchesTerm =
+        !term ||
+        task.title.toLowerCase().includes(term) ||
+        task.code.toLowerCase().includes(term) ||
+        task.assignedTo.toLowerCase().includes(term);
+      const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
+      const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
+      return matchesTerm && matchesStatus && matchesPriority;
+    });
+  }, [tasks, search, statusFilter, priorityFilter]);
+
+  const handleExport = () => {
+    downloadCsv(
+      'active-tasks',
+      visibleTasks.map((t) => ({ ...t })),
+      [
+        { key: 'code', label: 'Task Code' },
+        { key: 'title', label: 'Title' },
+        { key: 'assignedTo', label: 'Assigned To' },
+        { key: 'priority', label: 'Priority' },
+        { key: 'status', label: 'Status' },
+        { key: 'dueDate', label: 'Due Date' },
+        { key: 'slaHoursRemaining', label: 'SLA Hours Remaining' },
+        { key: 'promiseId', label: 'Promise ID' },
+      ],
+    );
+  };
+
 
   const handleReassign = async () => {
     if (!reassignDialog) return;
