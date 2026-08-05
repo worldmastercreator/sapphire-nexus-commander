@@ -242,8 +242,10 @@ export default function DevManagerActiveTasksView() {
               )}
             </motion.div>
           ))}
-          {!isLoading && !error && tasks.length === 0 && (
-            <p className="text-sm text-muted-foreground">No active tasks.</p>
+          {!isLoading && !error && visibleTasks.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              {tasks.length === 0 ? 'No active tasks.' : 'No tasks match these filters.'}
+            </p>
           )}
         </CardContent>
       </Card>
