@@ -555,7 +555,7 @@ export async function loadAuditTrail(
       actor: row.role ? `${row.role}` : (row.user_id ?? "system").slice(0, 8),
       target,
       timestamp: row.timestamp,
-      meta,
+      meta: meta ? JSON.stringify(meta) : null,
     };
   });
 

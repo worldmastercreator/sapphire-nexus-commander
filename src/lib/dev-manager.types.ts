@@ -116,7 +116,7 @@ export interface AuditEntryDTO {
   actor: string;
   target: string;
   timestamp: string;
-  meta: Record<string, unknown> | null;
+  meta: string | null;
 }
 
 export interface AuditTrailDTO {
