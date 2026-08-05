@@ -23,13 +23,18 @@ export function useDeliveryOverview() {
   const fetchOverview = useServerFn(getDeliveryOverview);
   const queryClient = useQueryClient();
   const seenEscalations = useRef<Set<string>>(new Set());
+  const { session, loading: authLoading } = useAuth();
 
   const query = useQuery<DeliveryOverviewDTO>({
     queryKey: DELIVERY_QUERY_KEY,
     queryFn: () => fetchOverview(),
+    enabled: !authLoading && !!session,
+    retry: (count, error) =>
+      !/Unauthorized|Forbidden/.test(error instanceof Error ? error.message : "") && count < 2,
     refetchInterval: 60_000,
     staleTime: 15_000,
   });
+
 
   // Realtime notifications: task + escalation + note changes push a refresh.
   useEffect(() => {
