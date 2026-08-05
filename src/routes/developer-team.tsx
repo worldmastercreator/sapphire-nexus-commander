@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import DeveloperManagementDashboard from "@/pages/super-admin-system/RoleSwitch/DeveloperManagementDashboard";
 
 export const Route = createFileRoute("/developer-team")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Developer Team Overview — Software Vala" },

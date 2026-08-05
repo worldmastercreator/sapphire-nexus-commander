@@ -183,7 +183,7 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
   );
 
   return (
-    <div className="min-h-screen w-full flex bg-background text-foreground">
+    <div className="min-h-dvh w-full flex bg-background text-foreground">
       {/* Desktop sidebar */}
       <aside
         className={cn(

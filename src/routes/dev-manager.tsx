@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import SecureDevManagerDashboard from "@/pages/dev-manager/SecureDevManagerDashboard";
 
 export const Route = createFileRoute("/dev-manager")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Developer Manager Console — Software Vala" },
