@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import DMFullLayout from "@/components/developer-management/DMFullLayout";
 
 export const Route = createFileRoute("/developer-management")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Developer Management — 17 Module Console" },

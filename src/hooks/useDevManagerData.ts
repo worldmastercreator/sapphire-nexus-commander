@@ -7,7 +7,9 @@ import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+
 import {
   addInternalNote,
   escalateTask,
@@ -23,13 +25,18 @@ export function useDeliveryOverview() {
   const fetchOverview = useServerFn(getDeliveryOverview);
   const queryClient = useQueryClient();
   const seenEscalations = useRef<Set<string>>(new Set());
+  const { session, loading: authLoading } = useAuth();
 
   const query = useQuery<DeliveryOverviewDTO>({
     queryKey: DELIVERY_QUERY_KEY,
     queryFn: () => fetchOverview(),
+    enabled: !authLoading && !!session,
+    retry: (count, error) =>
+      !/Unauthorized|Forbidden/.test(error instanceof Error ? error.message : "") && count < 2,
     refetchInterval: 60_000,
     staleTime: 15_000,
   });
+
 
   // Realtime notifications: task + escalation + note changes push a refresh.
   useEffect(() => {

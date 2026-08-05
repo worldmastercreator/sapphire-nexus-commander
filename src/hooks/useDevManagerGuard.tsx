@@ -31,9 +31,17 @@ export interface DevManagerStats {
 export function useDevManagerGuard() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   const isBlocked = BLOCKED_ROUTES.some((route) => pathname.startsWith(route));
+
+  // Authentication gate: no session -> back to the sign-in surface.
+  useEffect(() => {
+    if (loading) return;
+    if (!user && pathname !== "/auth") {
+      void navigate({ to: "/auth", replace: true });
+    }
+  }, [loading, user, pathname, navigate]);
 
   useEffect(() => {
     if (isBlocked) {
@@ -46,6 +54,7 @@ export function useDevManagerGuard() {
       void navigate({ to: "/", replace: true });
     }
   }, [pathname, navigate, isBlocked]);
+
 
   return {
     isBlocked,
