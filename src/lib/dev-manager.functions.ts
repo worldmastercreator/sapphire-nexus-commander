@@ -93,3 +93,21 @@ export const addInternalNote = createServerFn({ method: "POST" })
     await assertDevManager(context.supabase, context.userId);
     return addInternalNoteInDb(context.supabase, context.userId, data.taskId, data.content);
   });
+
+export const getAuditTrail = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        page: z.number().int().min(1).default(1),
+        pageSize: z.number().int().min(10).max(200).default(50),
+        search: z.string().max(200).default(""),
+        module: z.string().max(80).default("all"),
+      })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { assertDevManager, loadAuditTrail } = await import("./dev-manager.server");
+    await assertDevManager(context.supabase, context.userId);
+    return loadAuditTrail(context.supabase, data.page, data.pageSize, data.search, data.module);
+  });

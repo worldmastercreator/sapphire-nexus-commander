@@ -107,3 +107,21 @@ export interface DeliveryOverviewDTO {
   };
   autoEscalated: number;
 }
+
+export interface AuditEntryDTO {
+  id: string;
+  shortId: string;
+  module: string;
+  action: string;
+  actor: string;
+  target: string;
+  timestamp: string;
+  meta: string | null;
+}
+
+export interface AuditTrailDTO {
+  entries: AuditEntryDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+}

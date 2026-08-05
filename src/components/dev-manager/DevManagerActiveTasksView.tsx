@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, User, ArrowRight, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Clock, User, ArrowRight, AlertTriangle, RefreshCw, Download, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { downloadCsv } from '@/lib/export-csv';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,9 +51,44 @@ export default function DevManagerActiveTasksView() {
   const [reassignDialog, setReassignDialog] = useState<TaskDTO | null>(null);
   const [newAssignee, setNewAssignee] = useState('');
   const [reassignReason, setReassignReason] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
 
   const tasks = data?.tasks ?? [];
   const developers = data?.developers ?? [];
+
+  const visibleTasks = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return tasks.filter((task) => {
+      const matchesTerm =
+        !term ||
+        task.title.toLowerCase().includes(term) ||
+        task.code.toLowerCase().includes(term) ||
+        task.assignedTo.toLowerCase().includes(term);
+      const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
+      const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
+      return matchesTerm && matchesStatus && matchesPriority;
+    });
+  }, [tasks, search, statusFilter, priorityFilter]);
+
+  const handleExport = () => {
+    downloadCsv(
+      'active-tasks',
+      visibleTasks.map((t) => ({ ...t })),
+      [
+        { key: 'code', label: 'Task Code' },
+        { key: 'title', label: 'Title' },
+        { key: 'assignedTo', label: 'Assigned To' },
+        { key: 'priority', label: 'Priority' },
+        { key: 'status', label: 'Status' },
+        { key: 'dueDate', label: 'Due Date' },
+        { key: 'slaHoursRemaining', label: 'SLA Hours Remaining' },
+        { key: 'promiseId', label: 'Promise ID' },
+      ],
+    );
+  };
+
 
   const handleReassign = async () => {
     if (!reassignDialog) return;
@@ -80,14 +118,61 @@ export default function DevManagerActiveTasksView() {
   return (
     <div className="space-y-4">
       <Card className="bg-card/60 border-border">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-mono tracking-wider text-muted-foreground">
+        <CardHeader className="pb-3 gap-3">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            <CardTitle className="truncate text-sm font-mono tracking-wider text-muted-foreground">
               ACTIVE TASKS BY DEVELOPER
             </CardTitle>
-            <Badge variant="outline" className="font-mono">
-              {tasks.length} Active
-            </Badge>
+            <div className="flex shrink-0 items-center gap-2">
+              <Badge variant="outline" className="font-mono">
+                {visibleTasks.length}/{tasks.length}
+              </Badge>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleExport}
+                disabled={visibleTasks.length === 0}
+              >
+                <Download className="mr-2 h-3.5 w-3.5" />
+                CSV
+              </Button>
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_160px_160px]">
+            <div className="relative min-w-0">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder="Search tasks, code or developer…"
+                aria-label="Search active tasks"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger aria-label="Filter by status">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in_progress">In progress</SelectItem>
+                <SelectItem value="review">Review</SelectItem>
+                <SelectItem value="blocked">Blocked</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger aria-label="Filter by priority">
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All priorities</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -97,7 +182,8 @@ export default function DevManagerActiveTasksView() {
               {error instanceof Error ? error.message : 'Failed to load tasks'}
             </p>
           )}
-          {tasks.map((task, idx) => (
+          {visibleTasks.map((task, idx) => (
+
             <motion.div
               key={task.id}
               initial={{ opacity: 0, y: 10 }}
@@ -156,8 +242,10 @@ export default function DevManagerActiveTasksView() {
               )}
             </motion.div>
           ))}
-          {!isLoading && !error && tasks.length === 0 && (
-            <p className="text-sm text-muted-foreground">No active tasks.</p>
+          {!isLoading && !error && visibleTasks.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              {tasks.length === 0 ? 'No active tasks.' : 'No tasks match these filters.'}
+            </p>
           )}
         </CardContent>
       </Card>
