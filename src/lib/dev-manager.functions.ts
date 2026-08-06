@@ -1,101 +1,107 @@
 /**
  * Developer Manager server functions (typed RPC).
- * Every function is authenticated and enforces the Developer Manager role,
- * and every mutation writes an audit_logs row.
+ *
+ * This module is a CHILD MODULE of a host platform: it does not own login.
+ * The host app is the trust boundary, so these functions run without their own
+ * auth gate. Every mutation still writes an audit_logs row, and the caller can
+ * pass an `actor` label (host user id / name) that is recorded in the audit
+ * trail — see the host connect panel in the UI.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { DeliveryOverviewDTO } from "./dev-manager.types";
 
-export const getDeliveryOverview = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<DeliveryOverviewDTO> => {
-    const { assertDevManager, loadDeliveryOverview } = await import("./dev-manager.server");
-    await assertDevManager(context.supabase, context.userId);
-    return loadDeliveryOverview(context.supabase, context.userId);
-  });
+const actorSchema = z.string().trim().max(120).optional();
+
+export const getDeliveryOverview = createServerFn({ method: "GET" }).handler(
+  async (): Promise<DeliveryOverviewDTO> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { loadDeliveryOverview } = await import("./dev-manager.server");
+    return loadDeliveryOverview(supabaseAdmin, null);
+  },
+);
 
 export const reassignTask = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
     z
       .object({
         taskId: z.string().uuid(),
         newDeveloperId: z.string().uuid(),
         reason: z.string().trim().min(5).max(1000),
+        actor: actorSchema,
       })
       .parse(input),
   )
-  .handler(async ({ data, context }) => {
-    const { assertDevManager, reassignTaskInDb } = await import("./dev-manager.server");
-    await assertDevManager(context.supabase, context.userId);
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { reassignTaskInDb } = await import("./dev-manager.server");
     return reassignTaskInDb(
-      context.supabase,
-      context.userId,
+      supabaseAdmin,
+      null,
       data.taskId,
       data.newDeveloperId,
       data.reason,
+      data.actor,
     );
   });
 
 export const escalateTask = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
     z
       .object({
         taskId: z.string().uuid(),
         reason: z.string().trim().min(5).max(1000),
+        actor: actorSchema,
       })
       .parse(input),
   )
-  .handler(async ({ data, context }) => {
-    const { assertDevManager, escalateTaskInDb } = await import("./dev-manager.server");
-    await assertDevManager(context.supabase, context.userId);
-    return escalateTaskInDb(context.supabase, context.userId, data.taskId, data.reason);
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { escalateTaskInDb } = await import("./dev-manager.server");
+    return escalateTaskInDb(supabaseAdmin, null, data.taskId, data.reason, data.actor);
   });
 
 export const updateEscalation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
     z
       .object({
         escalationId: z.string().uuid(),
         status: z.enum(["acknowledged", "resolved", "rejected"]),
         resolution: z.string().trim().max(1000).nullable().default(null),
+        actor: actorSchema,
       })
       .parse(input),
   )
-  .handler(async ({ data, context }) => {
-    const { assertDevManager, updateEscalationInDb } = await import("./dev-manager.server");
-    await assertDevManager(context.supabase, context.userId);
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { updateEscalationInDb } = await import("./dev-manager.server");
     return updateEscalationInDb(
-      context.supabase,
-      context.userId,
+      supabaseAdmin,
+      null,
       data.escalationId,
       data.status,
       data.resolution,
+      data.actor,
     );
   });
 
 export const addInternalNote = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
     z
       .object({
         taskId: z.string().uuid(),
         content: z.string().trim().min(3).max(2000),
+        actor: actorSchema,
       })
       .parse(input),
   )
-  .handler(async ({ data, context }) => {
-    const { assertDevManager, addInternalNoteInDb } = await import("./dev-manager.server");
-    await assertDevManager(context.supabase, context.userId);
-    return addInternalNoteInDb(context.supabase, context.userId, data.taskId, data.content);
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { addInternalNoteInDb } = await import("./dev-manager.server");
+    return addInternalNoteInDb(supabaseAdmin, null, data.taskId, data.content, data.actor);
   });
 
 export const getAuditTrail = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
     z
       .object({
@@ -106,8 +112,8 @@ export const getAuditTrail = createServerFn({ method: "GET" })
       })
       .parse(input ?? {}),
   )
-  .handler(async ({ data, context }) => {
-    const { assertDevManager, loadAuditTrail } = await import("./dev-manager.server");
-    await assertDevManager(context.supabase, context.userId);
-    return loadAuditTrail(context.supabase, data.page, data.pageSize, data.search, data.module);
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { loadAuditTrail } = await import("./dev-manager.server");
+    return loadAuditTrail(supabaseAdmin, data.page, data.pageSize, data.search, data.module);
   });

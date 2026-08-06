@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { HostConnectButton } from '@/components/dev-manager/HostConnectButton';
 import { useDevManagerGuard } from '@/hooks/useDevManagerGuard';
 import { useDeliveryOverview } from '@/hooks/useDevManagerData';
 import { UnifiedShell, UnifiedNavGroup } from '@/components/unified/UnifiedShell';
@@ -124,7 +124,6 @@ const GROUPS: UnifiedNavGroup[] = [
 export default function SecureDevManagerDashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { signOut } = useAuth();
   useDevManagerGuard();
   const { data: overview, isLoading: overviewLoading } = useDeliveryOverview();
   const [active, setActive] = useState('capacity');
@@ -144,11 +143,6 @@ export default function SecureDevManagerDashboard() {
       });
     }
   }, [sessionTime, toast]);
-
-  const handleLogout = async () => {
-    await signOut();
-    navigate({ to: '/auth' });
-  };
 
   const formatSessionTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -187,9 +181,9 @@ export default function SecureDevManagerDashboard() {
       topbarTitle={title}
       onBack={() => navigate({ to: '/' })}
       backLabel="Back to Dashboard"
-      onLogout={handleLogout}
       topbarRight={
         <>
+          <HostConnectButton />
           <Badge variant="outline" className="font-mono text-xs">
             <Clock className="h-3 w-3 mr-1" />
             {formatSessionTime(sessionTime)}

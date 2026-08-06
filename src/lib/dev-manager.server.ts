@@ -50,16 +50,17 @@ export async function assertDevManager(supabase: Db, userId: string): Promise<vo
 /** Durable audit trail. Failures are loud, never silent. */
 export async function writeAudit(
   supabase: Db,
-  userId: string,
+  userId: string | null,
   module: string,
   action: string,
   meta: Record<string, unknown>,
+  actor?: string,
 ): Promise<void> {
   const { error } = await supabase.from("audit_logs").insert({
     module,
     action,
     user_id: userId,
-    meta_json: meta as never,
+    meta_json: { ...meta, actor: actor ?? "host_module" } as never,
   });
   if (error) throw new Error(`Audit log write failed: ${error.message}`);
 }
@@ -109,7 +110,7 @@ function label(dev: DeveloperRow | undefined): string {
  */
 async function autoEscalate(
   supabase: Db,
-  userId: string,
+  userId: string | null,
   tasks: TaskRow[],
   openEscalationTaskIds: Set<string>,
   now: number,
@@ -229,7 +230,7 @@ function buildPerformance(tasks: TaskRow[], devById: Map<string, DeveloperRow>, 
 
 export async function loadDeliveryOverview(
   supabase: Db,
-  userId: string,
+  userId: string | null,
 ): Promise<DeliveryOverviewDTO> {
   const now = Date.now();
 
@@ -388,10 +389,11 @@ export async function loadDeliveryOverview(
 
 export async function reassignTaskInDb(
   supabase: Db,
-  userId: string,
+  userId: string | null,
   taskId: string,
   newDeveloperId: string,
   reason: string,
+  actor?: string,
 ) {
   const { data: task, error: taskError } = await supabase
     .from("developer_tasks")
@@ -425,16 +427,17 @@ export async function reassignTaskInDb(
     from_developer_id: task.developer_id,
     to_developer_id: newDeveloperId,
     reason,
-  });
+  }, actor);
 
   return { ok: true as const };
 }
 
 export async function escalateTaskInDb(
   supabase: Db,
-  userId: string,
+  userId: string | null,
   taskId: string,
   reason: string,
+  actor?: string,
 ) {
   const { data: existing, error: readError } = await supabase
     .from("escalations")
@@ -470,17 +473,18 @@ export async function escalateTaskInDb(
     escalation_id: data.id,
     task_id: taskId,
     reason,
-  });
+  }, actor);
 
   return { ok: true as const, alreadyOpen: false };
 }
 
 export async function updateEscalationInDb(
   supabase: Db,
-  userId: string,
+  userId: string | null,
   escalationId: string,
   status: EscalationStatus,
   resolution: string | null,
+  actor?: string,
 ) {
   const patch: Database["public"]["Tables"]["escalations"]["Update"] = { status };
   if (status === "resolved" || status === "rejected") {
@@ -494,16 +498,17 @@ export async function updateEscalationInDb(
   await writeAudit(supabase, userId, "dev_manager.escalations", `ESCALATION_${status.toUpperCase()}`, {
     escalation_id: escalationId,
     resolution,
-  });
+  }, actor);
 
   return { ok: true as const };
 }
 
 export async function addInternalNoteInDb(
   supabase: Db,
-  userId: string,
+  userId: string | null,
   taskId: string,
   content: string,
+  actor?: string,
 ) {
   const { data, error } = await supabase
     .from("task_internal_notes")
@@ -515,7 +520,7 @@ export async function addInternalNoteInDb(
   await writeAudit(supabase, userId, "dev_manager.notes", "ADD_INTERNAL_NOTE", {
     note_id: data.id,
     task_id: taskId,
-  });
+  }, actor);
 
   return { ok: true as const };
 }
