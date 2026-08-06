@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RoutePending, RouteError } from "@/components/route-states";
 import SecureDevManagerDashboard from "@/pages/dev-manager/SecureDevManagerDashboard";
 
 export const Route = createFileRoute("/")({
@@ -22,4 +23,6 @@ export const Route = createFileRoute("/")({
     ],
   }),
   component: SecureDevManagerDashboard,
+  pendingComponent: RoutePending,
+  errorComponent: RouteError,
 });
