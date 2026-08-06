@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useDevManagerGuard } from '@/hooks/useDevManagerGuard';
+import { useDeliveryOverview } from '@/hooks/useDevManagerData';
 import { UnifiedShell, UnifiedNavGroup } from '@/components/unified/UnifiedShell';
 import { ScreenErrorBoundary, ScreenPending } from '@/components/route-states';
 
@@ -74,10 +75,10 @@ const GROUPS: UnifiedNavGroup[] = [
     title: 'Delivery Command',
     items: [
       { id: 'capacity', label: 'Capacity Overview', icon: LayoutDashboard },
-      { id: 'tasks', label: 'Active Tasks', icon: ListTodo, badge: 12 },
-      { id: 'risks', label: 'SLA Risks', icon: AlertTriangle, badge: 3 },
-      { id: 'blocked', label: 'Blocked Tasks', icon: AlertOctagon, badge: 2 },
-      { id: 'escalations', label: 'Escalations', icon: ArrowUpRight, badge: 2 },
+      { id: 'tasks', label: 'Active Tasks', icon: ListTodo },
+      { id: 'risks', label: 'SLA Risks', icon: AlertTriangle },
+      { id: 'blocked', label: 'Blocked Tasks', icon: AlertOctagon },
+      { id: 'escalations', label: 'Escalations', icon: ArrowUpRight },
       { id: 'comms', label: 'Internal Notes', icon: MessageSquare },
     ],
   },
@@ -85,7 +86,7 @@ const GROUPS: UnifiedNavGroup[] = [
     title: 'People & Skills',
     items: [
       { id: 'developer_registry', label: 'Developer Registry', icon: Users },
-      { id: 'onboarding_requests', label: 'Onboarding Requests', icon: UserPlus, badge: 3 },
+      { id: 'onboarding_requests', label: 'Onboarding Requests', icon: UserPlus },
       { id: 'role_skill_mapping', label: 'Role & Skill Mapping', icon: Layers },
     ],
   },
@@ -125,6 +126,7 @@ export default function SecureDevManagerDashboard() {
   const { toast } = useToast();
   const { signOut } = useAuth();
   useDevManagerGuard();
+  const { data: overview, isLoading: overviewLoading } = useDeliveryOverview();
   const [active, setActive] = useState('capacity');
   const [sessionTime, setSessionTime] = useState(0);
 
@@ -154,6 +156,23 @@ export default function SecureDevManagerDashboard() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const stats = overview?.stats;
+  const badges: Record<string, number | undefined> = {
+    tasks: stats?.activeTasks,
+    risks: stats?.atRisk,
+    blocked: stats?.blocked,
+    escalations: stats?.escalations,
+    alerts_escalation: stats?.escalations,
+    developer_registry: stats?.developers,
+  };
+  const groups: UnifiedNavGroup[] = GROUPS.map((g) => ({
+    ...g,
+    items: g.items.map((i) => {
+      const badge = badges[i.id];
+      return badge && badge > 0 ? { ...i, badge } : i;
+    }),
+  }));
+
   const title =
     GROUPS.flatMap((g) => g.items).find((i) => i.id === active)?.label ?? 'Developer Manager';
 
@@ -162,7 +181,7 @@ export default function SecureDevManagerDashboard() {
       brandTitle="Dev Manager"
       brandSubtitle="Delivery Governor"
       brandIcon={Code2}
-      groups={GROUPS}
+      groups={groups}
       activeId={active}
       onSelect={setActive}
       topbarTitle={title}
@@ -195,11 +214,11 @@ export default function SecureDevManagerDashboard() {
       {active !== 'capacity' && (
         <div className="mb-4 grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { icon: Users, label: 'Developers', value: 4 },
-            { icon: ListTodo, label: 'Active Tasks', value: 12 },
-            { icon: AlertTriangle, label: 'At Risk', value: 3 },
-            { icon: AlertOctagon, label: 'Blocked', value: 2 },
-            { icon: ArrowUpRight, label: 'Escalations', value: 2 },
+            { icon: Users, label: 'Developers', value: stats?.developers ?? 0 },
+            { icon: ListTodo, label: 'Active Tasks', value: stats?.activeTasks ?? 0 },
+            { icon: AlertTriangle, label: 'At Risk', value: stats?.atRisk ?? 0 },
+            { icon: AlertOctagon, label: 'Blocked', value: stats?.blocked ?? 0 },
+            { icon: ArrowUpRight, label: 'Escalations', value: stats?.escalations ?? 0 },
           ].map((s) => (
             <div
               key={s.label}
@@ -207,7 +226,9 @@ export default function SecureDevManagerDashboard() {
             >
               <s.icon className="h-4 w-4 text-primary shrink-0" />
               <div className="min-w-0">
-                <p className="text-lg font-mono font-bold leading-none">{s.value}</p>
+                <p className="text-lg font-mono font-bold leading-none">
+                  {overviewLoading ? '—' : s.value}
+                </p>
                 <p className="text-[11px] text-muted-foreground truncate">{s.label}</p>
               </div>
             </div>
