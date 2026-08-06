@@ -40,7 +40,7 @@ export function useDeliveryOverview() {
   // Realtime notifications: task + escalation + note changes push a refresh.
   useEffect(() => {
     const channel = supabase
-      .channel("dev-manager-delivery")
+      .channel(`dev-manager-delivery-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "developer_tasks" }, () => {
         void queryClient.invalidateQueries({ queryKey: DELIVERY_QUERY_KEY });
       })
