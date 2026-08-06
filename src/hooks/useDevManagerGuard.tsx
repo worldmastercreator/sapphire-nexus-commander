@@ -5,7 +5,6 @@
  */
 import { useEffect } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { useAuth } from "./useAuth";
 
 const BLOCKED_ROUTES = [
   "/admin",
@@ -18,7 +17,7 @@ const BLOCKED_ROUTES = [
   "/vala",
 ];
 
-const ALLOWED_ROUTES = ["/", "/dev-manager", "/logout", "/settings", "/auth"];
+const ALLOWED_ROUTES = ["/", "/dev-manager", "/developer-management", "/developer-team", "/settings"];
 
 export interface DevManagerStats {
   totalDevelopers: number;
@@ -31,17 +30,8 @@ export interface DevManagerStats {
 export function useDevManagerGuard() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { user, loading } = useAuth();
 
   const isBlocked = BLOCKED_ROUTES.some((route) => pathname.startsWith(route));
-
-  // Authentication gate: no session -> back to the sign-in surface.
-  useEffect(() => {
-    if (loading) return;
-    if (!user && pathname !== "/auth") {
-      void navigate({ to: "/auth", replace: true });
-    }
-  }, [loading, user, pathname, navigate]);
 
   useEffect(() => {
     if (isBlocked) {
@@ -59,7 +49,6 @@ export function useDevManagerGuard() {
   return {
     isBlocked,
     currentPath: pathname,
-    userId: user?.id,
   };
 }
 
