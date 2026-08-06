@@ -66,7 +66,7 @@ export class ScreenErrorBoundary extends React.Component<
   { children: React.ReactNode; screenId?: string },
   BoundaryState
 > {
-  state: BoundaryState = { error: null };
+  override state: BoundaryState = { error: null };
 
   static getDerivedStateFromError(error: Error): BoundaryState {
     return { error };
