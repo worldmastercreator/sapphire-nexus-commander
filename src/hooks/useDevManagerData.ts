@@ -89,7 +89,8 @@ function useAuditedMutation<TInput, TResult>(
 ) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: TInput) => fn({ data: input }),
+    mutationFn: (input: TInput) =>
+      fn({ data: { ...(input as object), actor: hostActor() } as TInput }),
     onSuccess: () => {
       toast({ title: successTitle, variant: "success" });
       void queryClient.invalidateQueries({ queryKey: DELIVERY_QUERY_KEY });
