@@ -64,7 +64,7 @@ export default function DevManagerAuth() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
+    <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-md">
         <div className="mb-8 flex items-center justify-center gap-3">
           <div className="gradient-brand flex h-11 w-11 items-center justify-center rounded-xl">

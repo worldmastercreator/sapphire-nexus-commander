@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RoutePending, RouteError } from "@/components/route-states";
 import DeveloperManagementDashboard from "@/pages/super-admin-system/RoleSwitch/DeveloperManagementDashboard";
 
 export const Route = createFileRoute("/developer-team")({
@@ -22,4 +23,6 @@ export const Route = createFileRoute("/developer-team")({
     ],
   }),
   component: DeveloperManagementDashboard,
+  pendingComponent: RoutePending,
+  errorComponent: RouteError,
 });

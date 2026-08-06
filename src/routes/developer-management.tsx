@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RoutePending, RouteError } from "@/components/route-states";
 import DMFullLayout from "@/components/developer-management/DMFullLayout";
 
 export const Route = createFileRoute("/developer-management")({
@@ -22,4 +23,6 @@ export const Route = createFileRoute("/developer-management")({
     ],
   }),
   component: DMFullLayout,
+  pendingComponent: RoutePending,
+  errorComponent: RouteError,
 });

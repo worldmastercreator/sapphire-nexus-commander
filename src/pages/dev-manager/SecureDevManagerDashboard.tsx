@@ -3,7 +3,7 @@
  * Merges the Delivery Governor views with the full Developer Management
  * module (17 screens) into one end-to-end consistent UI.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import {
   Users, ListTodo, AlertTriangle, BarChart3, ArrowUpRight, MessageSquare,
@@ -15,7 +15,9 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useDevManagerGuard } from '@/hooks/useDevManagerGuard';
+import { useDeliveryOverview } from '@/hooks/useDevManagerData';
 import { UnifiedShell, UnifiedNavGroup } from '@/components/unified/UnifiedShell';
+import { ScreenErrorBoundary, ScreenPending } from '@/components/route-states';
 
 import DevManagerCapacityOverview from '@/components/dev-manager/DevManagerCapacityOverview';
 import DevManagerActiveTasksView from '@/components/dev-manager/DevManagerActiveTasksView';
@@ -25,22 +27,22 @@ import DevManagerPerformanceSnapshot from '@/components/dev-manager/DevManagerPe
 import DevManagerEscalations from '@/components/dev-manager/DevManagerEscalations';
 import DevManagerInternalComms from '@/components/dev-manager/DevManagerInternalComms';
 
-import { DMDeveloperRegistry } from '@/components/developer-management/screens/DMDeveloperRegistry';
-import { DMOnboardingRequests } from '@/components/developer-management/screens/DMOnboardingRequests';
-import { DMRoleSkillMapping } from '@/components/developer-management/screens/DMRoleSkillMapping';
-import { DMTaskManagement } from '@/components/developer-management/screens/DMTaskManagement';
-import { DMSprintMilestone } from '@/components/developer-management/screens/DMSprintMilestone';
-import { DMBuildAssignment } from '@/components/developer-management/screens/DMBuildAssignment';
-import { DMCodeSubmission } from '@/components/developer-management/screens/DMCodeSubmission';
-import { DMReviewQA } from '@/components/developer-management/screens/DMReviewQA';
-import { DMBugFixTracker } from '@/components/developer-management/screens/DMBugFixTracker';
-import { DMPerformanceKPI } from '@/components/developer-management/screens/DMPerformanceKPI';
-import { DMPaymentIncentive } from '@/components/developer-management/screens/DMPaymentIncentive';
-import { DMComplianceNDA } from '@/components/developer-management/screens/DMComplianceNDA';
-import { DMSecurityAccess } from '@/components/developer-management/screens/DMSecurityAccess';
-import { DMAlertsEscalation } from '@/components/developer-management/screens/DMAlertsEscalation';
-import { DMAuditLogs } from '@/components/developer-management/screens/DMAuditLogs';
-import { DMSettings } from '@/components/developer-management/screens/DMSettings';
+const DMDeveloperRegistry = lazy(() => import("@/components/developer-management/screens/DMDeveloperRegistry").then((m) => ({ default: m.DMDeveloperRegistry })));
+const DMOnboardingRequests = lazy(() => import("@/components/developer-management/screens/DMOnboardingRequests").then((m) => ({ default: m.DMOnboardingRequests })));
+const DMRoleSkillMapping = lazy(() => import("@/components/developer-management/screens/DMRoleSkillMapping").then((m) => ({ default: m.DMRoleSkillMapping })));
+const DMTaskManagement = lazy(() => import("@/components/developer-management/screens/DMTaskManagement").then((m) => ({ default: m.DMTaskManagement })));
+const DMSprintMilestone = lazy(() => import("@/components/developer-management/screens/DMSprintMilestone").then((m) => ({ default: m.DMSprintMilestone })));
+const DMBuildAssignment = lazy(() => import("@/components/developer-management/screens/DMBuildAssignment").then((m) => ({ default: m.DMBuildAssignment })));
+const DMCodeSubmission = lazy(() => import("@/components/developer-management/screens/DMCodeSubmission").then((m) => ({ default: m.DMCodeSubmission })));
+const DMReviewQA = lazy(() => import("@/components/developer-management/screens/DMReviewQA").then((m) => ({ default: m.DMReviewQA })));
+const DMBugFixTracker = lazy(() => import("@/components/developer-management/screens/DMBugFixTracker").then((m) => ({ default: m.DMBugFixTracker })));
+const DMPerformanceKPI = lazy(() => import("@/components/developer-management/screens/DMPerformanceKPI").then((m) => ({ default: m.DMPerformanceKPI })));
+const DMPaymentIncentive = lazy(() => import("@/components/developer-management/screens/DMPaymentIncentive").then((m) => ({ default: m.DMPaymentIncentive })));
+const DMComplianceNDA = lazy(() => import("@/components/developer-management/screens/DMComplianceNDA").then((m) => ({ default: m.DMComplianceNDA })));
+const DMSecurityAccess = lazy(() => import("@/components/developer-management/screens/DMSecurityAccess").then((m) => ({ default: m.DMSecurityAccess })));
+const DMAlertsEscalation = lazy(() => import("@/components/developer-management/screens/DMAlertsEscalation").then((m) => ({ default: m.DMAlertsEscalation })));
+const DMAuditLogs = lazy(() => import("@/components/developer-management/screens/DMAuditLogs").then((m) => ({ default: m.DMAuditLogs })));
+const DMSettings = lazy(() => import("@/components/developer-management/screens/DMSettings").then((m) => ({ default: m.DMSettings })));
 
 const SCREENS: Record<string, React.ReactNode> = {
   capacity: <DevManagerCapacityOverview />,
@@ -73,10 +75,10 @@ const GROUPS: UnifiedNavGroup[] = [
     title: 'Delivery Command',
     items: [
       { id: 'capacity', label: 'Capacity Overview', icon: LayoutDashboard },
-      { id: 'tasks', label: 'Active Tasks', icon: ListTodo, badge: 12 },
-      { id: 'risks', label: 'SLA Risks', icon: AlertTriangle, badge: 3 },
-      { id: 'blocked', label: 'Blocked Tasks', icon: AlertOctagon, badge: 2 },
-      { id: 'escalations', label: 'Escalations', icon: ArrowUpRight, badge: 2 },
+      { id: 'tasks', label: 'Active Tasks', icon: ListTodo },
+      { id: 'risks', label: 'SLA Risks', icon: AlertTriangle },
+      { id: 'blocked', label: 'Blocked Tasks', icon: AlertOctagon },
+      { id: 'escalations', label: 'Escalations', icon: ArrowUpRight },
       { id: 'comms', label: 'Internal Notes', icon: MessageSquare },
     ],
   },
@@ -84,7 +86,7 @@ const GROUPS: UnifiedNavGroup[] = [
     title: 'People & Skills',
     items: [
       { id: 'developer_registry', label: 'Developer Registry', icon: Users },
-      { id: 'onboarding_requests', label: 'Onboarding Requests', icon: UserPlus, badge: 3 },
+      { id: 'onboarding_requests', label: 'Onboarding Requests', icon: UserPlus },
       { id: 'role_skill_mapping', label: 'Role & Skill Mapping', icon: Layers },
     ],
   },
@@ -124,6 +126,7 @@ export default function SecureDevManagerDashboard() {
   const { toast } = useToast();
   const { signOut } = useAuth();
   useDevManagerGuard();
+  const { data: overview, isLoading: overviewLoading } = useDeliveryOverview();
   const [active, setActive] = useState('capacity');
   const [sessionTime, setSessionTime] = useState(0);
 
@@ -153,6 +156,23 @@ export default function SecureDevManagerDashboard() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const stats = overview?.stats;
+  const badges: Record<string, number | undefined> = {
+    tasks: stats?.activeTasks,
+    risks: stats?.atRisk,
+    blocked: stats?.blocked,
+    escalations: stats?.escalations,
+    alerts_escalation: stats?.escalations,
+    developer_registry: stats?.developers,
+  };
+  const groups: UnifiedNavGroup[] = GROUPS.map((g) => ({
+    ...g,
+    items: g.items.map((i) => {
+      const badge = badges[i.id];
+      return badge && badge > 0 ? { ...i, badge } : i;
+    }),
+  }));
+
   const title =
     GROUPS.flatMap((g) => g.items).find((i) => i.id === active)?.label ?? 'Developer Manager';
 
@@ -161,7 +181,7 @@ export default function SecureDevManagerDashboard() {
       brandTitle="Dev Manager"
       brandSubtitle="Delivery Governor"
       brandIcon={Code2}
-      groups={GROUPS}
+      groups={groups}
       activeId={active}
       onSelect={setActive}
       topbarTitle={title}
@@ -194,11 +214,11 @@ export default function SecureDevManagerDashboard() {
       {active !== 'capacity' && (
         <div className="mb-4 grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            { icon: Users, label: 'Developers', value: 4 },
-            { icon: ListTodo, label: 'Active Tasks', value: 12 },
-            { icon: AlertTriangle, label: 'At Risk', value: 3 },
-            { icon: AlertOctagon, label: 'Blocked', value: 2 },
-            { icon: ArrowUpRight, label: 'Escalations', value: 2 },
+            { icon: Users, label: 'Developers', value: stats?.developers ?? 0 },
+            { icon: ListTodo, label: 'Active Tasks', value: stats?.activeTasks ?? 0 },
+            { icon: AlertTriangle, label: 'At Risk', value: stats?.atRisk ?? 0 },
+            { icon: AlertOctagon, label: 'Blocked', value: stats?.blocked ?? 0 },
+            { icon: ArrowUpRight, label: 'Escalations', value: stats?.escalations ?? 0 },
           ].map((s) => (
             <div
               key={s.label}
@@ -206,7 +226,9 @@ export default function SecureDevManagerDashboard() {
             >
               <s.icon className="h-4 w-4 text-primary shrink-0" />
               <div className="min-w-0">
-                <p className="text-lg font-mono font-bold leading-none">{s.value}</p>
+                <p className="text-lg font-mono font-bold leading-none">
+                  {overviewLoading ? '—' : s.value}
+                </p>
                 <p className="text-[11px] text-muted-foreground truncate">{s.label}</p>
               </div>
             </div>
@@ -215,7 +237,9 @@ export default function SecureDevManagerDashboard() {
       )}
 
 
-      {SCREENS[active]}
+      <ScreenErrorBoundary screenId={active}>
+        <Suspense fallback={<ScreenPending />}>{SCREENS[active]}</Suspense>
+      </ScreenErrorBoundary>
     </UnifiedShell>
   );
 }
