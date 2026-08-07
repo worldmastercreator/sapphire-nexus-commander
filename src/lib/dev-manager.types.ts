@@ -125,3 +125,18 @@ export interface AuditTrailDTO {
   page: number;
   pageSize: number;
 }
+
+/** Developer Registry row (live from the developers table). */
+export interface RegistryDeveloperDTO {
+  id: string;
+  valaId: string;
+  fullName: string;
+  email: string;
+  status: string;
+  availability: Availability;
+  skillTags: string[];
+  maxCapacity: number;
+  activeTasks: number;
+  onboardingCompleted: boolean;
+  joinedAt: string | null;
+}
