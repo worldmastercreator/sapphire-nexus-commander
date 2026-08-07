@@ -127,22 +127,57 @@ export default function SecureDevManagerDashboard() {
   useDevManagerGuard();
   const { data: overview, isLoading: overviewLoading } = useDeliveryOverview();
   const [active, setActive] = useState('capacity');
-  const [sessionTime, setSessionTime] = useState(0);
+  const [idleSeconds, setIdleSeconds] = useState(0);
+  const [locked, setLocked] = useState(false);
+  const warnedRef = React.useRef(false);
 
-  useEffect(() => {
-    const timer = setInterval(() => setSessionTime((p) => p + 1), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const IDLE_LIMIT = 1800; // 30 min
+  const IDLE_WARN = 1500; // 25 min
 
+  // Idle tracking — any real user activity resets the countdown.
   useEffect(() => {
-    if (sessionTime === 1800) {
+    if (locked) return;
+    const reset = () => {
+      setIdleSeconds(0);
+      warnedRef.current = false;
+    };
+    const events: (keyof WindowEventMap)[] = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
+    events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    const timer = setInterval(() => setIdleSeconds((p) => p + 1), 1000);
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, reset));
+      clearInterval(timer);
+    };
+  }, [locked]);
+
+  // Enforcement: warn at 25 min, lock the console at 30 min.
+  useEffect(() => {
+    if (locked) return;
+    if (idleSeconds >= IDLE_LIMIT) {
+      setLocked(true);
       toast({
-        title: 'Session Warning',
-        description: 'Session will expire in 5 minutes',
+        title: 'Session locked',
+        description: 'Console locked after 30 minutes of inactivity.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (idleSeconds >= IDLE_WARN && !warnedRef.current) {
+      warnedRef.current = true;
+      toast({
+        title: 'Session expiring',
+        description: 'Console locks in 5 minutes unless you interact.',
         variant: 'destructive',
       });
     }
-  }, [sessionTime, toast]);
+  }, [idleSeconds, locked, toast]);
+
+  const resumeSession = () => {
+    setIdleSeconds(0);
+    warnedRef.current = false;
+    setLocked(false);
+  };
+
 
   const formatSessionTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
