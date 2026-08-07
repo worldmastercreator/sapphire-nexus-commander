@@ -50,9 +50,11 @@ interface UnifiedShellProps {
   children: ReactNode;
   footer?: ReactNode;
   showSearch?: boolean;
+  notifications?: { id: string; title: string; description?: string; onClick?: () => void }[];
   collapsible?: boolean;
   defaultCollapsed?: boolean;
 }
+
 
 export const UnifiedShell: React.FC<UnifiedShellProps> = ({
   brandTitle,
