@@ -15,10 +15,17 @@ import {
   escalateTask,
   getAuditTrail,
   getDeliveryOverview,
+  getDeveloperRegistry,
+  setDeveloperStatus,
   reassignTask,
   updateEscalation,
 } from "@/lib/dev-manager.functions";
-import type { AuditTrailDTO, DeliveryOverviewDTO, EscalationStatus } from "@/lib/dev-manager.types";
+import type {
+  AuditTrailDTO,
+  DeliveryOverviewDTO,
+  EscalationStatus,
+  RegistryDeveloperDTO,
+} from "@/lib/dev-manager.types";
 
 export const DELIVERY_QUERY_KEY = ["dev-manager", "delivery-overview"] as const;
 
@@ -150,5 +157,37 @@ export function useAuditTrail(params: {
       !/Unauthorized|Forbidden/.test(error instanceof Error ? error.message : "") && count < 2,
     staleTime: 10_000,
     placeholderData: (prev) => prev,
+  });
+}
+
+export const REGISTRY_QUERY_KEY = ["dev-manager", "registry"] as const;
+
+/** Live developer registry (real rows from the backend). */
+export function useDeveloperRegistry() {
+  const fetchRegistry = useServerFn(getDeveloperRegistry);
+  return useQuery<RegistryDeveloperDTO[]>({
+    queryKey: REGISTRY_QUERY_KEY,
+    queryFn: () => fetchRegistry(),
+    staleTime: 15_000,
+  });
+}
+
+/** Audited suspend / reactivate / exit for a developer. */
+export function useSetDeveloperStatus() {
+  const mutate = useServerFn(setDeveloperStatus);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      developerId: string;
+      status: "active" | "suspended" | "probation" | "exited";
+      reason: string;
+    }) => mutate({ data: { ...input, actor: hostActor() } }),
+    onSuccess: (_r, vars) => {
+      toast({ title: `Developer ${vars.status}`, description: "Change recorded in the audit trail." });
+      void queryClient.invalidateQueries({ queryKey: REGISTRY_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: DELIVERY_QUERY_KEY });
+    },
+    onError: (error) =>
+      toast({ title: "Status change failed", description: describeError(error), variant: "destructive" }),
   });
 }
