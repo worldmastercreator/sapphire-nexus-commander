@@ -9,9 +9,10 @@ import {
   Users, ListTodo, AlertTriangle, BarChart3, ArrowUpRight, MessageSquare,
   Shield, AlertOctagon, Clock, LayoutDashboard, UserPlus, Layers, Target,
   Hammer, FileCode, CheckCircle, Bug, TrendingUp, Wallet, Lock, FileText,
-  Settings, Code2,
+  Settings, Code2, ChevronLeft as ChevronLeftIcon, Lock as LockIcon,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { HostConnectButton } from '@/components/dev-manager/HostConnectButton';
 import { useDevManagerGuard } from '@/hooks/useDevManagerGuard';
@@ -329,9 +330,27 @@ export default function SecureDevManagerDashboard() {
       )}
 
 
-      <ScreenErrorBoundary screenId={active}>
-        <Suspense fallback={<ScreenPending />}>{SCREENS[active]}</Suspense>
-      </ScreenErrorBoundary>
+      {locked ? (
+        <div
+          role="alertdialog"
+          aria-label="Session locked"
+          className="flex flex-col items-center justify-center gap-4 rounded-xl border border-destructive/30 bg-destructive/5 py-20 text-center"
+        >
+          <LockIcon className="h-10 w-10 text-destructive" />
+          <div>
+            <p className="text-lg font-semibold">Session locked</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This console locked automatically after 30 minutes of inactivity. All data views were
+              suspended.
+            </p>
+          </div>
+          <Button onClick={resumeSession}>Resume session</Button>
+        </div>
+      ) : (
+        <ScreenErrorBoundary screenId={active}>
+          <Suspense fallback={<ScreenPending />}>{SCREENS[active]}</Suspense>
+        </ScreenErrorBoundary>
+      )}
     </UnifiedShell>
   );
 }
