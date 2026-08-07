@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useDeliveryOverview, useEscalateTask } from '@/hooks/useDevManagerData';
+import { InfoHint } from '@/components/dev-manager/ui-helpers';
 import type { SLARiskDTO } from '@/lib/dev-manager.types';
 
 const getRiskColor = (level: SLARiskDTO['riskLevel']) => {
@@ -70,6 +71,7 @@ export default function DevManagerSLARiskAlerts() {
           <CardTitle className="text-sm font-mono tracking-wider text-muted-foreground flex items-center gap-2">
             <Bell className="w-4 h-4" />
             SLA RISK ALERTS
+            <InfoHint text="Risk level is derived from hours left against the promised delivery window: critical under 4h, high under 12h, moderate otherwise." />
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -87,8 +89,8 @@ export default function DevManagerSLARiskAlerts() {
               transition={{ delay: idx * 0.05 }}
               className={`p-4 rounded-lg border ${getRiskColor(risk.riskLevel)}`}
             >
-              <div className="flex items-start justify-between mb-3">
-                <div>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 mb-3">
+                <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-mono text-xs">{risk.code}</span>
                     <Badge className={`text-xs ${getRiskBadgeColor(risk.riskLevel)}`}>
@@ -102,13 +104,22 @@ export default function DevManagerSLARiskAlerts() {
                   </div>
                   <h4 className="font-medium">{risk.title}</h4>
                 </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-1 text-sm">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span className={risk.hoursRemaining <= 4 ? 'text-red-400 font-bold' : 'text-muted-foreground'}>
+                <div className="shrink-0 text-right">
+                  <div className="flex items-center justify-end gap-1 text-sm tabular-nums">
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span
+                      className={
+                        risk.hoursRemaining <= 4
+                          ? 'w-16 text-right font-bold text-red-400'
+                          : 'w-16 text-right text-muted-foreground'
+                      }
+                    >
                       {risk.hoursRemaining}h left
                     </span>
                   </div>
+                  <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    SLA window
+                  </p>
                 </div>
               </div>
 
@@ -138,9 +149,12 @@ export default function DevManagerSLARiskAlerts() {
           ))}
 
           {!isLoading && !error && risks.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No SLA risks detected</p>
+            <div className="flex flex-col items-center py-12 text-muted-foreground">
+              <div className="mb-3 rounded-full bg-emerald-500/10 p-4">
+                <TrendingUp className="h-10 w-10 text-emerald-400" />
+              </div>
+              <p className="text-base font-medium text-foreground">No SLA risks detected</p>
+              <p className="mt-1 text-sm">Every active task is inside its promised delivery window.</p>
             </div>
           )}
         </CardContent>

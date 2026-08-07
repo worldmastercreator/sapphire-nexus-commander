@@ -9,7 +9,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { DeliveryOverviewDTO } from "./dev-manager.types";
+import type { DeliveryOverviewDTO, RegistryDeveloperDTO } from "./dev-manager.types";
 
 const actorSchema = z.string().trim().max(120).optional();
 
@@ -116,4 +116,35 @@ export const getAuditTrail = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { loadAuditTrail } = await import("./dev-manager.server");
     return loadAuditTrail(supabaseAdmin, data.page, data.pageSize, data.search, data.module);
+  });
+
+export const getDeveloperRegistry = createServerFn({ method: "GET" }).handler(
+  async (): Promise<RegistryDeveloperDTO[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { loadDeveloperRegistry } = await import("./dev-manager.server");
+    return loadDeveloperRegistry(supabaseAdmin);
+  },
+);
+
+export const setDeveloperStatus = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        developerId: z.string().uuid(),
+        status: z.enum(["active", "suspended", "probation", "exited"]),
+        reason: z.string().trim().min(5).max(500),
+        actor: actorSchema,
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { setDeveloperStatusInDb } = await import("./dev-manager.server");
+    return setDeveloperStatusInDb(
+      supabaseAdmin,
+      data.developerId,
+      data.status,
+      data.reason,
+      data.actor,
+    );
   });

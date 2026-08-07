@@ -9,9 +9,10 @@ import {
   Users, ListTodo, AlertTriangle, BarChart3, ArrowUpRight, MessageSquare,
   Shield, AlertOctagon, Clock, LayoutDashboard, UserPlus, Layers, Target,
   Hammer, FileCode, CheckCircle, Bug, TrendingUp, Wallet, Lock, FileText,
-  Settings, Code2,
+  Settings, Code2, ChevronLeft as ChevronLeftIcon, Lock as LockIcon,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { HostConnectButton } from '@/components/dev-manager/HostConnectButton';
 import { useDevManagerGuard } from '@/hooks/useDevManagerGuard';
@@ -127,22 +128,57 @@ export default function SecureDevManagerDashboard() {
   useDevManagerGuard();
   const { data: overview, isLoading: overviewLoading } = useDeliveryOverview();
   const [active, setActive] = useState('capacity');
-  const [sessionTime, setSessionTime] = useState(0);
+  const [idleSeconds, setIdleSeconds] = useState(0);
+  const [locked, setLocked] = useState(false);
+  const warnedRef = React.useRef(false);
 
-  useEffect(() => {
-    const timer = setInterval(() => setSessionTime((p) => p + 1), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const IDLE_LIMIT = 1800; // 30 min
+  const IDLE_WARN = 1500; // 25 min
 
+  // Idle tracking — any real user activity resets the countdown.
   useEffect(() => {
-    if (sessionTime === 1800) {
+    if (locked) return;
+    const reset = () => {
+      setIdleSeconds(0);
+      warnedRef.current = false;
+    };
+    const events: (keyof WindowEventMap)[] = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
+    events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    const timer = setInterval(() => setIdleSeconds((p) => p + 1), 1000);
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, reset));
+      clearInterval(timer);
+    };
+  }, [locked]);
+
+  // Enforcement: warn at 25 min, lock the console at 30 min.
+  useEffect(() => {
+    if (locked) return;
+    if (idleSeconds >= IDLE_LIMIT) {
+      setLocked(true);
       toast({
-        title: 'Session Warning',
-        description: 'Session will expire in 5 minutes',
+        title: 'Session locked',
+        description: 'Console locked after 30 minutes of inactivity.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (idleSeconds >= IDLE_WARN && !warnedRef.current) {
+      warnedRef.current = true;
+      toast({
+        title: 'Session expiring',
+        description: 'Console locks in 5 minutes unless you interact.',
         variant: 'destructive',
       });
     }
-  }, [sessionTime, toast]);
+  }, [idleSeconds, locked, toast]);
+
+  const resumeSession = () => {
+    setIdleSeconds(0);
+    warnedRef.current = false;
+    setLocked(false);
+  };
+
 
   const formatSessionTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -169,6 +205,35 @@ export default function SecureDevManagerDashboard() {
 
   const title =
     GROUPS.flatMap((g) => g.items).find((i) => i.id === active)?.label ?? 'Developer Manager';
+  const groupTitle =
+    GROUPS.find((g) => g.items.some((i) => i.id === active))?.title ?? 'Console';
+
+  const notifications = [
+    stats?.atRisk
+      ? {
+          id: 'risks',
+          title: `${stats.atRisk} task(s) at SLA risk`,
+          description: 'Open SLA Risk Alerts',
+          onClick: () => setActive('risks'),
+        }
+      : null,
+    stats?.blocked
+      ? {
+          id: 'blocked',
+          title: `${stats.blocked} blocked task(s)`,
+          description: 'Open Blocked Tasks',
+          onClick: () => setActive('blocked'),
+        }
+      : null,
+    stats?.escalations
+      ? {
+          id: 'escalations',
+          title: `${stats.escalations} open escalation(s)`,
+          description: 'Open Escalations',
+          onClick: () => setActive('escalations'),
+        }
+      : null,
+  ].filter(Boolean) as { id: string; title: string; description?: string; onClick?: () => void }[];
 
   return (
     <UnifiedShell
@@ -179,15 +244,23 @@ export default function SecureDevManagerDashboard() {
       activeId={active}
       onSelect={setActive}
       topbarTitle={title}
+      notifications={notifications}
       onBack={() => navigate({ to: '/' })}
       backLabel="Back to Dashboard"
       topbarRight={
         <>
           <HostConnectButton />
-          <Badge variant="outline" className="font-mono text-xs">
+          <Badge
+            variant="outline"
+            className={`font-mono text-xs ${
+              idleSeconds >= IDLE_WARN ? 'border-destructive/40 text-destructive' : ''
+            }`}
+            title="Time until this console locks for inactivity"
+          >
             <Clock className="h-3 w-3 mr-1" />
-            {formatSessionTime(sessionTime)}
+            {formatSessionTime(Math.max(0, IDLE_LIMIT - idleSeconds))}
           </Badge>
+
           <Badge
             variant="outline"
             className="hidden sm:inline-flex bg-primary/10 text-primary border-primary/30"
@@ -205,7 +278,33 @@ export default function SecureDevManagerDashboard() {
         </footer>
       }
     >
+      <nav aria-label="Breadcrumb" className="mb-3 flex items-center gap-2 text-xs">
+        {active !== 'capacity' && (
+          <button
+            onClick={() => setActive('capacity')}
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeftIcon className="h-3 w-3" />
+            Back
+          </button>
+        )}
+        <ol className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+          <li>
+            <button onClick={() => setActive('capacity')} className="hover:text-foreground">
+              Dev Manager
+            </button>
+          </li>
+          <li aria-hidden="true">/</li>
+          <li>{groupTitle}</li>
+          <li aria-hidden="true">/</li>
+          <li className="truncate font-medium text-foreground" aria-current="page">
+            {title}
+          </li>
+        </ol>
+      </nav>
+
       {active !== 'capacity' && (
+
         <div className="mb-4 grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             { icon: Users, label: 'Developers', value: stats?.developers ?? 0 },
@@ -231,9 +330,27 @@ export default function SecureDevManagerDashboard() {
       )}
 
 
-      <ScreenErrorBoundary screenId={active}>
-        <Suspense fallback={<ScreenPending />}>{SCREENS[active]}</Suspense>
-      </ScreenErrorBoundary>
+      {locked ? (
+        <div
+          role="alertdialog"
+          aria-label="Session locked"
+          className="flex flex-col items-center justify-center gap-4 rounded-xl border border-destructive/30 bg-destructive/5 py-20 text-center"
+        >
+          <LockIcon className="h-10 w-10 text-destructive" />
+          <div>
+            <p className="text-lg font-semibold">Session locked</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This console locked automatically after 30 minutes of inactivity. All data views were
+              suspended.
+            </p>
+          </div>
+          <Button onClick={resumeSession}>Resume session</Button>
+        </div>
+      ) : (
+        <ScreenErrorBoundary screenId={active}>
+          <Suspense fallback={<ScreenPending />}>{SCREENS[active]}</Suspense>
+        </ScreenErrorBoundary>
+      )}
     </UnifiedShell>
   );
 }

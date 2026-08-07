@@ -6,9 +6,19 @@
  *   - mobile drawer (hamburger)
  *   - optional back button, logout, topbar right slot, footer slot
  */
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, LogOut, Search, Bell, Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 import { cn } from "@/lib/utils";
 
 export type UnifiedNavItem = {
@@ -40,9 +50,11 @@ interface UnifiedShellProps {
   children: ReactNode;
   footer?: ReactNode;
   showSearch?: boolean;
+  notifications?: { id: string; title: string; description?: string; onClick?: () => void }[];
   collapsible?: boolean;
   defaultCollapsed?: boolean;
 }
+
 
 export const UnifiedShell: React.FC<UnifiedShellProps> = ({
   brandTitle,
@@ -59,15 +71,26 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
   children,
   footer,
   showSearch = true,
+  notifications = [],
   collapsible = true,
   defaultCollapsed = false,
 }) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   const sidebarWidth = collapsed ? "w-16" : "w-64";
 
+  const visibleGroups = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return groups;
+    return groups
+      .map((g) => ({ ...g, items: g.items.filter((i) => i.label.toLowerCase().includes(term)) }))
+      .filter((g) => g.items.length > 0);
+  }, [groups, query]);
+
   const SidebarInner = (
+
     <>
       {onBack && (
         <div className="px-3 pt-3 pb-2 border-b border-sidebar-border">
@@ -105,7 +128,7 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
       </div>
 
       <nav className="flex-1 overflow-y-auto scrollbar-thin px-2 py-4 space-y-5">
-        {groups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.title}>
             {!collapsed && (
               <div className="px-3 pb-2 text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
@@ -155,6 +178,9 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
             </div>
           </div>
         ))}
+        {visibleGroups.length === 0 && !collapsed && (
+          <p className="px-3 text-xs text-muted-foreground">No modules match “{query}”.</p>
+        )}
       </nav>
 
       {onLogout && (
@@ -243,15 +269,54 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
           </div>
           <div className="flex items-center gap-2">
             {showSearch && (
-              <div className="hidden md:flex items-center gap-2 h-9 px-3 rounded-lg bg-surface-2 border border-border text-xs text-muted-foreground w-64">
-                <Search className="h-3.5 w-3.5" />
-                <span>Search…</span>
+              <div className="relative hidden w-64 md:block">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search modules…"
+                  aria-label="Search modules"
+                  className="h-9 pl-9 text-xs"
+                />
               </div>
             )}
-            <button className="h-9 w-9 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-muted-foreground hover:text-foreground">
-              <Bell className="h-4 w-4" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  aria-label={`Notifications (${notifications.length})`}
+                  className="relative h-9 w-9 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-muted-foreground hover:text-foreground"
+                >
+                  <Bell className="h-4 w-4" />
+                  {notifications.length > 0 && (
+                    <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-destructive px-1 text-[10px] font-bold leading-4 text-destructive-foreground">
+                      {notifications.length}
+                    </span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {notifications.length === 0 ? (
+                  <DropdownMenuItem disabled>Nothing needs attention</DropdownMenuItem>
+                ) : (
+                  notifications.map((n) => (
+                    <DropdownMenuItem
+                      key={n.id}
+                      onClick={n.onClick}
+                      className="flex flex-col items-start gap-0.5"
+                    >
+                      <span className="text-sm font-medium">{n.title}</span>
+                      {n.description && (
+                        <span className="text-xs text-muted-foreground">{n.description}</span>
+                      )}
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {topbarRight}
+
           </div>
         </header>
 

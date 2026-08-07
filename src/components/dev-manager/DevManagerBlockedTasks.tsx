@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useDeliveryOverview, useEscalateTask } from '@/hooks/useDevManagerData';
+import { InfoHint } from '@/components/dev-manager/ui-helpers';
 import type { BlockedTaskDTO } from '@/lib/dev-manager.types';
 
 export default function DevManagerBlockedTasks() {
@@ -26,6 +27,7 @@ export default function DevManagerBlockedTasks() {
           <CardTitle className="text-sm font-mono tracking-wider text-muted-foreground flex items-center gap-2">
             <AlertOctagon className="w-4 h-4 text-red-400" />
             BLOCKED TASKS
+            <InfoHint text="A blocked task auto-escalates to the area manager once it passes its escalation threshold." />
           </CardTitle>
           <Badge variant="outline" className="font-mono text-red-400 border-red-500/30">
             {blockedTasks.length} Blocked
@@ -72,8 +74,20 @@ export default function DevManagerBlockedTasks() {
                     <Clock className="w-3.5 h-3.5" />
                     <span>{task.blockedHours}h blocked</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1 tabular-nums">
                     Threshold: {task.autoEscalateThreshold}h
+                  </p>
+                  <p
+                    className={`text-xs mt-0.5 tabular-nums ${
+                      isAutoEscalated ? 'text-red-400' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {isAutoEscalated
+                      ? 'Auto-escalation triggered'
+                      : `Auto-escalates in ${Math.max(
+                          0,
+                          task.autoEscalateThreshold - task.blockedHours,
+                        )}h`}
                   </p>
                 </div>
               </div>
@@ -107,8 +121,11 @@ export default function DevManagerBlockedTasks() {
 
         {!isLoading && !error && blockedTasks.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            <AlertOctagon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No blocked tasks</p>
+            <div className="mx-auto mb-3 w-fit rounded-full bg-emerald-500/10 p-4">
+              <AlertOctagon className="h-10 w-10 text-emerald-400" />
+            </div>
+            <p className="text-base font-medium text-foreground">No blocked tasks</p>
+            <p className="mt-1 text-sm">Nothing is waiting on a dependency right now.</p>
           </div>
         )}
       </CardContent>

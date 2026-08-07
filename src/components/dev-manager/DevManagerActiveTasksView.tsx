@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, User, ArrowRight, AlertTriangle, RefreshCw, Download, Search } from 'lucide-react';
+import { Clock, User, ArrowRight, AlertTriangle, RefreshCw, Download, Search, Loader2 } from 'lucide-react';
+import { InfoHint } from '@/components/dev-manager/ui-helpers';
 import { Input } from '@/components/ui/input';
 import { downloadCsv } from '@/lib/export-csv';
 
@@ -54,6 +55,7 @@ export default function DevManagerActiveTasksView() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [errors, setErrors] = useState<{ assignee?: string | undefined; reason?: string | undefined }>({});
 
   const tasks = data?.tasks ?? [];
   const developers = data?.developers ?? [];
@@ -71,6 +73,18 @@ export default function DevManagerActiveTasksView() {
       return matchesTerm && matchesStatus && matchesPriority;
     });
   }, [tasks, search, statusFilter, priorityFilter]);
+
+  const assignableDevelopers = useMemo(() => {
+    const order: Record<string, number> = { available: 0, busy: 1, overloaded: 2 };
+    return developers
+      .filter((d) => d.id !== reassignDialog?.developerId)
+      .slice()
+      .sort(
+        (a, b) =>
+          (order[a.availability] ?? 3) - (order[b.availability] ?? 3) ||
+          a.activeTasks / Math.max(1, a.maxCapacity) - b.activeTasks / Math.max(1, b.maxCapacity),
+      );
+  }, [developers, reassignDialog]);
 
   const handleExport = () => {
     downloadCsv(
@@ -90,13 +104,31 @@ export default function DevManagerActiveTasksView() {
   };
 
 
+  const closeDialog = () => {
+    setReassignDialog(null);
+    setNewAssignee('');
+    setReassignReason('');
+    setErrors({});
+  };
+
+  const validate = () => {
+    const next: { assignee?: string; reason?: string } = {};
+    if (!newAssignee) next.assignee = 'Select the developer who will take this task.';
+    if (reassignReason.trim().length < 5)
+      next.reason = 'A reason of at least 5 characters is required for the audit trail.';
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const canSubmit = !!newAssignee && reassignReason.trim().length >= 5;
+
   const handleReassign = async () => {
     if (!reassignDialog) return;
-    if (!newAssignee || reassignReason.trim().length < 5) {
+    if (!validate()) {
       toast({
-        title: "Reason Required",
-        description: "Select a developer and give a reason (min 5 characters).",
-        variant: "destructive"
+        title: 'Reassignment blocked',
+        description: 'Fix the highlighted fields before confirming.',
+        variant: 'destructive',
       });
       return;
     }
@@ -107,9 +139,7 @@ export default function DevManagerActiveTasksView() {
         newDeveloperId: newAssignee,
         reason: reassignReason.trim(),
       });
-      setReassignDialog(null);
-      setNewAssignee('');
-      setReassignReason('');
+      closeDialog();
     } catch {
       // failure surfaced by the mutation's error toast
     }
@@ -251,8 +281,16 @@ export default function DevManagerActiveTasksView() {
       </Card>
 
       {/* Reassign Dialog */}
-      <Dialog open={!!reassignDialog} onOpenChange={() => setReassignDialog(null)}>
-        <DialogContent className="bg-card border-border">
+      <Dialog
+        open={!!reassignDialog}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent
+          className="bg-card border-border"
+          onEscapeKeyDown={() => closeDialog()}
+        >
           <DialogHeader>
             <DialogTitle className="font-mono">
               Reassign Task {reassignDialog?.code}
@@ -266,42 +304,88 @@ export default function DevManagerActiveTasksView() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">New Assignee</label>
-              <Select value={newAssignee} onValueChange={setNewAssignee}>
-                <SelectTrigger className="bg-muted border-border">
+              <label htmlFor="reassign-assignee" className="flex items-center gap-1 text-sm text-muted-foreground">
+                New Assignee <span className="text-red-400" aria-hidden="true">*</span>
+                <InfoHint text="Developers are ordered by availability. Anyone at or over capacity cannot receive new work." />
+              </label>
+              <Select
+                value={newAssignee}
+                onValueChange={(v) => {
+                  setNewAssignee(v);
+                  setErrors((e) => ({ ...e, assignee: undefined }));
+                }}
+              >
+                <SelectTrigger
+                  id="reassign-assignee"
+                  aria-invalid={!!errors.assignee}
+                  aria-describedby={errors.assignee ? 'reassign-assignee-error' : undefined}
+                  className={`bg-muted border-border ${errors.assignee ? 'border-destructive ring-1 ring-destructive' : ''}`}
+                >
                   <SelectValue placeholder="Select developer" />
                 </SelectTrigger>
                 <SelectContent className="bg-muted border-border">
-                  {developers
-                    .filter(d => d.id !== reassignDialog?.developerId)
-                    .map(dev => (
-                      <SelectItem key={dev.id} value={dev.id} className="font-mono">
-                        {dev.valaId} — {dev.activeTasks}/{dev.maxCapacity}
+                  {assignableDevelopers.map((dev) => {
+                    const full = dev.activeTasks >= dev.maxCapacity;
+                    return (
+                      <SelectItem
+                        key={dev.id}
+                        value={dev.id}
+                        disabled={full}
+                        className="font-mono"
+                      >
+                        {dev.valaId} — {dev.activeTasks}/{dev.maxCapacity} ·{' '}
+                        {full ? 'at capacity' : dev.availability}
                       </SelectItem>
-                    ))}
+                    );
+                  })}
                 </SelectContent>
               </Select>
+              {errors.assignee && (
+                <p id="reassign-assignee-error" className="text-xs text-destructive">
+                  {errors.assignee}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">
-                Reason <span className="text-red-400">*</span>
+              <label htmlFor="reassign-reason" className="flex items-center gap-1 text-sm text-muted-foreground">
+                Reason <span className="text-red-400" aria-hidden="true">*</span>
+                <InfoHint text="Stored in the audit trail against this task. Minimum 5 characters." />
               </label>
               <Textarea
+                id="reassign-reason"
                 value={reassignReason}
-                onChange={(e) => setReassignReason(e.target.value)}
+                onChange={(e) => {
+                  setReassignReason(e.target.value);
+                  setErrors((err) => ({ ...err, reason: undefined }));
+                }}
+                aria-invalid={!!errors.reason}
+                aria-describedby={errors.reason ? 'reassign-reason-error' : undefined}
                 placeholder="Mandatory: Explain why this task is being reassigned..."
-                className="bg-muted border-border min-h-[100px]"
+                className={`bg-muted border-border min-h-[100px] ${errors.reason ? 'border-destructive ring-1 ring-destructive' : ''}`}
               />
+              {errors.reason && (
+                <p id="reassign-reason-error" className="text-xs text-destructive">
+                  {errors.reason}
+                </p>
+              )}
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setReassignDialog(null)}>
+            <Button variant="ghost" onClick={closeDialog}>
               Cancel
             </Button>
-            <Button onClick={handleReassign} disabled={reassign.isPending} className="gap-2">
-              <ArrowRight className="w-4 h-4" />
+            <Button
+              onClick={handleReassign}
+              disabled={reassign.isPending || !canSubmit}
+              className="gap-2"
+            >
+              {reassign.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ArrowRight className="w-4 h-4" />
+              )}
               {reassign.isPending ? 'Saving…' : 'Confirm Reassignment'}
             </Button>
           </DialogFooter>

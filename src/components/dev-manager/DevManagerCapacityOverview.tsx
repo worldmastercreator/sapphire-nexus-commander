@@ -4,6 +4,7 @@ import { Users, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useDeliveryOverview } from '@/hooks/useDevManagerData';
+import { InfoHint, ReadOnlyTag } from '@/components/dev-manager/ui-helpers';
 import type { DeveloperCapacityDTO } from '@/lib/dev-manager.types';
 
 const getAvailabilityColor = (availability: DeveloperCapacityDTO['availability']) => {
@@ -95,9 +96,13 @@ export default function DevManagerCapacityOverview() {
       {/* Developer List */}
       <Card className="bg-card/60 border-border">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-mono tracking-wider text-muted-foreground">
+          <CardTitle className="flex items-center gap-2 text-sm font-mono tracking-wider text-muted-foreground">
             DEVELOPER CAPACITY
+            <InfoHint text="Occupancy is active tasks against the developer's configured maximum capacity. Amber from 80%, red at or over 100%." />
           </CardTitle>
+          <div className="pt-1">
+            <ReadOnlyTag note="capacity is derived from live task data" />
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {isLoading && (
@@ -127,13 +132,20 @@ export default function DevManagerCapacityOverview() {
                     </span>
                   )}
                 </div>
-                <span className={`font-mono text-sm ${getCapacityColor(dev.activeTasks, dev.maxCapacity)}`}>
-                  {dev.activeTasks}/{dev.maxCapacity}
+                <span
+                  className={`font-mono text-sm tabular-nums ${getCapacityColor(dev.activeTasks, dev.maxCapacity)}`}
+                >
+                  {dev.activeTasks}/{dev.maxCapacity} tasks ·{' '}
+                  {dev.maxCapacity > 0
+                    ? Math.round((dev.activeTasks / dev.maxCapacity) * 100)
+                    : 0}
+                  %
                 </span>
               </div>
               <Progress
                 value={dev.maxCapacity > 0 ? (dev.activeTasks / dev.maxCapacity) * 100 : 0}
                 className="h-1.5"
+                aria-label={`${dev.valaId} capacity: ${dev.activeTasks} of ${dev.maxCapacity} tasks`}
               />
               <div className="flex gap-1 mt-2 flex-wrap">
                 {dev.skillTags.map(skill => (

@@ -19,6 +19,7 @@ import type {
   TaskDTO,
   UiPriority,
   UiStatus,
+  RegistryDeveloperDTO,
 } from "./dev-manager.types";
 
 export type Db = SupabaseClient<Database>;
@@ -565,4 +566,73 @@ export async function loadAuditTrail(
   });
 
   return { entries, total: count ?? entries.length, page, pageSize };
+}
+
+
+/** Live Developer Registry: real developers plus their open task load. */
+export async function loadDeveloperRegistry(supabase: Db): Promise<RegistryDeveloperDTO[]> {
+  const [{ data: devs, error: devErr }, { data: tasks, error: taskErr }] = await Promise.all([
+    supabase
+      .from("developers")
+      .select(
+        "id, vala_id, full_name, email, status, availability, skill_tags, max_capacity, onboarding_completed, joined_at",
+      )
+      .order("created_at", { ascending: true }),
+    supabase.from("developer_tasks").select("developer_id, status").in("status", OPEN_STATUSES),
+  ]);
+  if (devErr) throw new Error(`Registry unavailable: ${devErr.message}`);
+  if (taskErr) throw new Error(`Registry task load failed: ${taskErr.message}`);
+
+  const load = new Map<string, number>();
+  for (const t of tasks ?? []) {
+    if (!t.developer_id) continue;
+    load.set(t.developer_id, (load.get(t.developer_id) ?? 0) + 1);
+  }
+
+  return (devs ?? []).map((d) => ({
+    id: d.id,
+    valaId: d.vala_id ?? `DEV-${d.id.slice(0, 4).toUpperCase()}`,
+    fullName: d.full_name,
+    email: d.email,
+    status: d.status,
+    availability: (d.availability as Availability) ?? "available",
+    skillTags: d.skill_tags ?? [],
+    maxCapacity: d.max_capacity ?? 0,
+    activeTasks: load.get(d.id) ?? 0,
+    onboardingCompleted: d.onboarding_completed,
+    joinedAt: d.joined_at,
+  }));
+}
+
+/** Registry lifecycle: suspend / reactivate / exit — always audited. */
+export async function setDeveloperStatusInDb(
+  supabase: Db,
+  developerId: string,
+  status: "active" | "suspended" | "probation" | "exited",
+  reason: string,
+  actor?: string,
+) {
+  const { data: before, error: readErr } = await supabase
+    .from("developers")
+    .select("status, vala_id")
+    .eq("id", developerId)
+    .single();
+  if (readErr) throw new Error(`Developer not found: ${readErr.message}`);
+
+  const { error } = await supabase
+    .from("developers")
+    .update({ status, availability: status === "active" ? "available" : "unavailable" })
+    .eq("id", developerId);
+  if (error) throw new Error(`Status update failed: ${error.message}`);
+
+  await writeAudit(
+    supabase,
+    null,
+    "dev_manager.registry",
+    `DEVELOPER_${status.toUpperCase()}`,
+    { developer_id: developerId, vala_id: before.vala_id, from: before.status, to: status, reason },
+    actor,
+  );
+
+  return { ok: true as const };
 }
