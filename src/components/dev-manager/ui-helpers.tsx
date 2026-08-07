@@ -92,8 +92,8 @@ export const ConfirmAction: React.FC<ConfirmActionProps> = ({
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction onClick={onConfirm}>{confirmLabel}</AlertDialogAction>
       </AlertDialogFooter>
-    </AlertDialogFooter>
     </AlertDialogContent>
+
   </AlertDialog>
 );
 
