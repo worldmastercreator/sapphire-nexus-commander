@@ -204,6 +204,35 @@ export default function SecureDevManagerDashboard() {
 
   const title =
     GROUPS.flatMap((g) => g.items).find((i) => i.id === active)?.label ?? 'Developer Manager';
+  const groupTitle =
+    GROUPS.find((g) => g.items.some((i) => i.id === active))?.title ?? 'Console';
+
+  const notifications = [
+    stats?.atRisk
+      ? {
+          id: 'risks',
+          title: `${stats.atRisk} task(s) at SLA risk`,
+          description: 'Open SLA Risk Alerts',
+          onClick: () => setActive('risks'),
+        }
+      : null,
+    stats?.blocked
+      ? {
+          id: 'blocked',
+          title: `${stats.blocked} blocked task(s)`,
+          description: 'Open Blocked Tasks',
+          onClick: () => setActive('blocked'),
+        }
+      : null,
+    stats?.escalations
+      ? {
+          id: 'escalations',
+          title: `${stats.escalations} open escalation(s)`,
+          description: 'Open Escalations',
+          onClick: () => setActive('escalations'),
+        }
+      : null,
+  ].filter(Boolean) as { id: string; title: string; description?: string; onClick?: () => void }[];
 
   return (
     <UnifiedShell
@@ -214,15 +243,23 @@ export default function SecureDevManagerDashboard() {
       activeId={active}
       onSelect={setActive}
       topbarTitle={title}
+      notifications={notifications}
       onBack={() => navigate({ to: '/' })}
       backLabel="Back to Dashboard"
       topbarRight={
         <>
           <HostConnectButton />
-          <Badge variant="outline" className="font-mono text-xs">
+          <Badge
+            variant="outline"
+            className={`font-mono text-xs ${
+              idleSeconds >= IDLE_WARN ? 'border-destructive/40 text-destructive' : ''
+            }`}
+            title="Time until this console locks for inactivity"
+          >
             <Clock className="h-3 w-3 mr-1" />
-            {formatSessionTime(sessionTime)}
+            {formatSessionTime(Math.max(0, IDLE_LIMIT - idleSeconds))}
           </Badge>
+
           <Badge
             variant="outline"
             className="hidden sm:inline-flex bg-primary/10 text-primary border-primary/30"
