@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ConfirmAction, InfoHint } from '@/components/dev-manager/ui-helpers';
 import { useDeliveryOverview, useUpdateEscalation } from '@/hooks/useDevManagerData';
 import type { EscalationDTO } from '@/lib/dev-manager.types';
 
@@ -37,6 +38,7 @@ export default function DevManagerEscalations() {
           <CardTitle className="text-sm font-mono tracking-wider text-muted-foreground flex items-center gap-2">
             <ArrowUpRight className="w-4 h-4" />
             ESCALATIONS
+            <InfoHint text="Escalations route to the area manager. Acknowledge to take ownership, then resolve with a note of at least 5 characters." />
           </CardTitle>
           <div className="flex gap-2">
             {pendingCount > 0 && (
@@ -84,6 +86,26 @@ export default function DevManagerEscalations() {
 
               <p className="text-sm mb-3">{escalation.reason}</p>
 
+              <ol className="mb-3 space-y-1 border-l border-border pl-3 text-xs text-muted-foreground">
+                <li>
+                  <span className="font-medium text-foreground">Raised</span> ·{' '}
+                  {new Date(escalation.escalatedAt).toLocaleString()}
+                  {escalation.autoEscalated ? ' (automatic)' : ''}
+                </li>
+                {escalation.status !== 'pending' && (
+                  <li>
+                    <span className="font-medium text-foreground">Acknowledged</span> · owner{' '}
+                    {escalation.escalatedTo}
+                  </li>
+                )}
+                {escalation.status === 'resolved' && (
+                  <li>
+                    <span className="font-medium text-foreground">Resolved</span>
+                    {escalation.resolvedAt ? ` · ${new Date(escalation.resolvedAt).toLocaleString()}` : ''}
+                  </li>
+                )}
+              </ol>
+
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <ArrowUpRight className="w-3 h-3" />
@@ -93,12 +115,11 @@ export default function DevManagerEscalations() {
               </div>
 
               {escalation.status === 'pending' && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-3 w-full"
-                  disabled={update.isPending}
-                  onClick={() =>
+                <ConfirmAction
+                  title="Acknowledge escalation?"
+                  description={`You will be recorded as the owner of ${escalation.shortId} in the audit trail.`}
+                  confirmLabel="Acknowledge"
+                  onConfirm={() =>
                     update.mutate({
                       escalationId: escalation.id,
                       status: 'acknowledged',
@@ -106,33 +127,47 @@ export default function DevManagerEscalations() {
                     })
                   }
                 >
-                  Acknowledge
-                </Button>
+                  <Button size="sm" variant="outline" className="mt-3 w-full" disabled={update.isPending}>
+                    {update.isPending ? 'Saving…' : 'Acknowledge'}
+                  </Button>
+                </ConfirmAction>
               )}
 
               {escalation.status === 'acknowledged' && (
-                <div className="mt-3 flex gap-2">
-                  <Input
-                    value={resolutions[escalation.id] ?? ''}
-                    onChange={(e) =>
-                      setResolutions((prev) => ({ ...prev, [escalation.id]: e.target.value }))
-                    }
-                    placeholder="Resolution note…"
-                    className="text-sm"
-                  />
-                  <Button
-                    size="sm"
-                    disabled={update.isPending}
-                    onClick={() =>
-                      update.mutate({
-                        escalationId: escalation.id,
-                        status: 'resolved',
-                        resolution: resolutions[escalation.id]?.trim() || null,
-                      })
-                    }
-                  >
-                    Resolve
-                  </Button>
+                <div className="mt-3 space-y-1">
+                  <div className="flex gap-2">
+                    <Input
+                      id={`resolution-${escalation.id}`}
+                      value={resolutions[escalation.id] ?? ''}
+                      onChange={(e) =>
+                        setResolutions((prev) => ({ ...prev, [escalation.id]: e.target.value }))
+                      }
+                      placeholder="Resolution note (required, min 5 chars)…"
+                      aria-label={`Resolution note for ${escalation.shortId}`}
+                      className="text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      disabled={
+                        update.isPending || (resolutions[escalation.id]?.trim().length ?? 0) < 5
+                      }
+                      onClick={() =>
+                        update.mutate({
+                          escalationId: escalation.id,
+                          status: 'resolved',
+                          resolution: resolutions[escalation.id]?.trim() ?? null,
+                        })
+                      }
+                    >
+                      {update.isPending ? 'Saving…' : 'Resolve'}
+                    </Button>
+                  </div>
+                  {(resolutions[escalation.id]?.trim().length ?? 0) > 0 &&
+                    (resolutions[escalation.id]?.trim().length ?? 0) < 5 && (
+                      <p className="text-xs text-destructive">
+                        Resolution needs at least 5 characters for the audit trail.
+                      </p>
+                    )}
                 </div>
               )}
 
@@ -150,8 +185,11 @@ export default function DevManagerEscalations() {
 
         {!isLoading && !error && escalations.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No escalations</p>
+            <div className="mx-auto mb-3 w-fit rounded-full bg-emerald-500/10 p-4">
+              <AlertTriangle className="h-10 w-10 text-emerald-400" />
+            </div>
+            <p className="text-base font-medium text-foreground">No escalations</p>
+            <p className="mt-1 text-sm">Nothing has breached its threshold or been raised manually.</p>
           </div>
         )}
       </CardContent>
