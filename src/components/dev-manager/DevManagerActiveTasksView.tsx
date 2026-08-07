@@ -55,7 +55,7 @@ export default function DevManagerActiveTasksView() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
-  const [errors, setErrors] = useState<{ assignee?: string; reason?: string }>({});
+  const [errors, setErrors] = useState<{ assignee?: string | undefined; reason?: string | undefined }>({});
 
   const tasks = data?.tasks ?? [];
   const developers = data?.developers ?? [];
