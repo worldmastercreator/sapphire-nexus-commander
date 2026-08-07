@@ -128,7 +128,7 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
       </div>
 
       <nav className="flex-1 overflow-y-auto scrollbar-thin px-2 py-4 space-y-5">
-        {groups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.title}>
             {!collapsed && (
               <div className="px-3 pb-2 text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
@@ -178,6 +178,9 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
             </div>
           </div>
         ))}
+        {visibleGroups.length === 0 && !collapsed && (
+          <p className="px-3 text-xs text-muted-foreground">No modules match “{query}”.</p>
+        )}
       </nav>
 
       {onLogout && (
