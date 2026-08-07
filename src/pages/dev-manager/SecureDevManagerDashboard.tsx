@@ -277,7 +277,33 @@ export default function SecureDevManagerDashboard() {
         </footer>
       }
     >
+      <nav aria-label="Breadcrumb" className="mb-3 flex items-center gap-2 text-xs">
+        {active !== 'capacity' && (
+          <button
+            onClick={() => setActive('capacity')}
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeftIcon className="h-3 w-3" />
+            Back
+          </button>
+        )}
+        <ol className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+          <li>
+            <button onClick={() => setActive('capacity')} className="hover:text-foreground">
+              Dev Manager
+            </button>
+          </li>
+          <li aria-hidden="true">/</li>
+          <li>{groupTitle}</li>
+          <li aria-hidden="true">/</li>
+          <li className="truncate font-medium text-foreground" aria-current="page">
+            {title}
+          </li>
+        </ol>
+      </nav>
+
       {active !== 'capacity' && (
+
         <div className="mb-4 grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             { icon: Users, label: 'Developers', value: stats?.developers ?? 0 },
