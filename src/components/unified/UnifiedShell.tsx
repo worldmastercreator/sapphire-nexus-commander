@@ -71,15 +71,26 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
   children,
   footer,
   showSearch = true,
+  notifications = [],
   collapsible = true,
   defaultCollapsed = false,
 }) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   const sidebarWidth = collapsed ? "w-16" : "w-64";
 
+  const visibleGroups = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return groups;
+    return groups
+      .map((g) => ({ ...g, items: g.items.filter((i) => i.label.toLowerCase().includes(term)) }))
+      .filter((g) => g.items.length > 0);
+  }, [groups, query]);
+
   const SidebarInner = (
+
     <>
       {onBack && (
         <div className="px-3 pt-3 pb-2 border-b border-sidebar-border">
