@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { HostConnectButton } from '@/components/dev-manager/HostConnectButton';
+import { RoleSwitchDropdown } from '@/components/role-switch/RoleSwitchDropdown';
 import { useDevManagerGuard } from '@/hooks/useDevManagerGuard';
 import { useDeliveryOverview } from '@/hooks/useDevManagerData';
 import { UnifiedShell, UnifiedNavGroup } from '@/components/unified/UnifiedShell';
@@ -250,6 +251,7 @@ export default function SecureDevManagerDashboard() {
       topbarRight={
         <>
           <HostConnectButton />
+          <RoleSwitchDropdown />
           <Badge
             variant="outline"
             className={`font-mono text-xs ${

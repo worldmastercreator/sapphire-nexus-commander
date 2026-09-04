@@ -1,9 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { RoutePending, RouteError } from "@/components/route-states";
 import DMFullLayout from "@/components/developer-management/DMFullLayout";
+import { getRoleSwitchSession } from "@/lib/role-switch.functions";
 
 export const Route = createFileRoute("/developer-management")({
   ssr: false,
+  beforeLoad: async () => {
+    const session = await getRoleSwitchSession();
+    if (!session.authenticated) throw redirect({ to: "/" });
+  },
   head: () => ({
     meta: [
       { title: "Developer Management — 17 Module Console" },
