@@ -37,7 +37,7 @@ async function matchesSecret(input: string, expected: string | undefined): Promi
   const expectedBytes = new Uint8Array(expectedDigest);
   let difference = inputBytes.length ^ expectedBytes.length;
   for (let index = 0; index < inputBytes.length; index += 1) {
-    difference |= inputBytes[index] ^ expectedBytes[index];
+    difference |= (inputBytes[index] ?? 0) ^ (expectedBytes[index] ?? 0);
   }
   return difference === 0;
 }
