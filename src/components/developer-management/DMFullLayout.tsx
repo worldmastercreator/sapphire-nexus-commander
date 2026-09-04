@@ -11,6 +11,7 @@ import {
   AlertTriangle, FileText, Settings, Code2,
 } from 'lucide-react';
 import { UnifiedShell, UnifiedNavGroup } from '@/components/unified/UnifiedShell';
+import { RoleSwitchDropdown } from '@/components/role-switch/RoleSwitchDropdown';
 import { DMScreen } from './DMFullSidebar';
 import { DMDeveloperDashboard } from './screens/DMDeveloperDashboard';
 import { DMDeveloperRegistry } from './screens/DMDeveloperRegistry';
@@ -130,6 +131,7 @@ export const DMFullLayout: React.FC = () => {
       activeId={activeScreen}
       onSelect={(id) => setActiveScreen(id as DMScreen)}
       topbarTitle={title}
+      topbarRight={<RoleSwitchDropdown />}
     >
       {renderScreen()}
     </UnifiedShell>
