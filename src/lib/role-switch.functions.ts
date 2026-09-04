@@ -1,4 +1,3 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
 import { z } from "zod";
@@ -27,11 +26,20 @@ function getSessionConfig() {
   };
 }
 
-function matchesSecret(input: string, expected: string | undefined): boolean {
-  if (!expected) return false;
-  const inputDigest = createHash("sha256").update(input, "utf8").digest();
-  const expectedDigest = createHash("sha256").update(expected, "utf8").digest();
-  return timingSafeEqual(inputDigest, expectedDigest);
+async function matchesSecret(input: string, expected: string | undefined): Promise<boolean> {
+  if (!expected || !globalThis.crypto?.subtle) return false;
+  const encode = new TextEncoder();
+  const [inputDigest, expectedDigest] = await Promise.all([
+    globalThis.crypto.subtle.digest("SHA-256", encode.encode(input)),
+    globalThis.crypto.subtle.digest("SHA-256", encode.encode(expected)),
+  ]);
+  const inputBytes = new Uint8Array(inputDigest);
+  const expectedBytes = new Uint8Array(expectedDigest);
+  let difference = inputBytes.length ^ expectedBytes.length;
+  for (let index = 0; index < inputBytes.length; index += 1) {
+    difference |= inputBytes[index] ^ expectedBytes[index];
+  }
+  return difference === 0;
 }
 
 export const authenticateSuperAdmin = createServerFn({ method: "POST" })
@@ -46,11 +54,13 @@ export const authenticateSuperAdmin = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const valid =
-      matchesSecret(data.username, process.env["SUPER_ADMIN_USERNAME"]) &&
-      matchesSecret(data.password, process.env["SUPER_ADMIN_PASSWORD"]) &&
-      matchesSecret(data.licenseKey, process.env["SUPER_ADMIN_LICENSE_KEY"]) &&
-      matchesSecret(data.backupKey, process.env["SUPER_ADMIN_BACKUP_KEY"]);
+    const [usernameValid, passwordValid, licenseValid, backupValid] = await Promise.all([
+      matchesSecret(data.username, process.env["SUPER_ADMIN_USERNAME"]),
+      matchesSecret(data.password, process.env["SUPER_ADMIN_PASSWORD"]),
+      matchesSecret(data.licenseKey, process.env["SUPER_ADMIN_LICENSE_KEY"]),
+      matchesSecret(data.backupKey, process.env["SUPER_ADMIN_BACKUP_KEY"]),
+    ]);
+    const valid = usernameValid && passwordValid && licenseValid && backupValid;
 
     if (!valid) return { ok: false as const };
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { KeyRound, LogIn, LogOut, ShieldCheck, UserRound } from "lucide-react";
 
@@ -72,7 +72,7 @@ export function RoleSwitchDropdown() {
     setFields((current) => ({ ...current, [field]: value }));
   };
 
-  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setBusy(true);
     try {

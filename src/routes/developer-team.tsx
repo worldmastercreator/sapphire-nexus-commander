@@ -1,9 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { RoutePending, RouteError } from "@/components/route-states";
 import DeveloperManagementDashboard from "@/pages/super-admin-system/RoleSwitch/DeveloperManagementDashboard";
+import { getRoleSwitchSession } from "@/lib/role-switch.functions";
 
 export const Route = createFileRoute("/developer-team")({
   ssr: false,
+  beforeLoad: async () => {
+    const session = await getRoleSwitchSession();
+    if (!session.authenticated) throw redirect({ to: "/" });
+  },
   head: () => ({
     meta: [
       { title: "Developer Team Overview — Software Vala" },
