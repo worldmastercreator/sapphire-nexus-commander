@@ -9,7 +9,7 @@ import {
   Users, ListTodo, AlertTriangle, BarChart3, ArrowUpRight, MessageSquare,
   Shield, AlertOctagon, Clock, LayoutDashboard, UserPlus, Layers, Target,
   Hammer, FileCode, CheckCircle, Bug, TrendingUp, Wallet, Lock, FileText,
-  Settings, Code2, ChevronLeft as ChevronLeftIcon, Lock as LockIcon,
+  Settings, Code2, Lock as LockIcon,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -206,9 +206,6 @@ export default function SecureDevManagerDashboard() {
 
   const title =
     GROUPS.flatMap((g) => g.items).find((i) => i.id === active)?.label ?? 'Developer Manager';
-  const groupTitle =
-    GROUPS.find((g) => g.items.some((i) => i.id === active))?.title ?? 'Console';
-
   const notifications = [
     stats?.atRisk
       ? {
@@ -280,31 +277,6 @@ export default function SecureDevManagerDashboard() {
         </footer>
       }
     >
-      <nav aria-label="Breadcrumb" className="mb-3 flex items-center gap-2 text-xs">
-        {active !== 'capacity' && (
-          <button
-            onClick={() => setActive('capacity')}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-muted-foreground hover:text-foreground"
-          >
-            <ChevronLeftIcon className="h-3 w-3" />
-            Back
-          </button>
-        )}
-        <ol className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-          <li>
-            <button onClick={() => setActive('capacity')} className="hover:text-foreground">
-              Dev Manager
-            </button>
-          </li>
-          <li aria-hidden="true">/</li>
-          <li>{groupTitle}</li>
-          <li aria-hidden="true">/</li>
-          <li className="truncate font-medium text-foreground" aria-current="page">
-            {title}
-          </li>
-        </ol>
-      </nav>
-
       {active !== 'capacity' && (
 
         <div className="mb-4 grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -317,7 +289,7 @@ export default function SecureDevManagerDashboard() {
           ].map((s) => (
             <div
               key={s.label}
-              className="rounded-xl border border-border bg-card/60 px-4 py-3 flex items-center gap-3"
+              className="bento-card flex items-center gap-3 px-4 py-3"
             >
               <s.icon className="h-4 w-4 text-primary shrink-0" />
               <div className="min-w-0">

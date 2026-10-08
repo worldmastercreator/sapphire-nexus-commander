@@ -79,7 +79,8 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [query, setQuery] = useState("");
 
-  const sidebarWidth = collapsed ? "w-16" : "w-64";
+  const sidebarWidth = collapsed ? "w-[72px]" : "w-[264px]";
+  const activeGroup = groups.find((group) => group.items.some((item) => item.id === activeId));
 
   const visibleGroups = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -104,8 +105,8 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
         </div>
       )}
 
-      <div className="px-4 pt-5 pb-4 border-b border-sidebar-border flex items-center gap-2.5">
-        <div className="h-10 w-10 rounded-full bg-gradient-brand flex items-center justify-center shadow-glow shrink-0">
+      <div className={cn("flex h-16 items-center gap-3 border-b border-sidebar-border px-5", collapsed && "justify-center px-3")}>
+        <div className="h-9 w-9 rounded-lg bg-gradient-brand flex items-center justify-center shadow-glow shrink-0">
           {BrandIcon ? (
             <BrandIcon className="h-5 w-5 text-brand-foreground" />
           ) : (
@@ -114,12 +115,12 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <div className="text-sm font-bold tracking-tight truncate">
+            <div className="text-sm font-bold truncate text-foreground">
               {brandTitle}
               <span className="text-[hsl(var(--brand-red))]">™</span>
             </div>
             {brandSubtitle && (
-              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground truncate">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground truncate">
                 {brandSubtitle}
               </div>
             )}
@@ -127,11 +128,26 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto scrollbar-thin px-2 py-4 space-y-5">
+      {showSearch && !collapsed && (
+        <div className="px-4 pb-4 pt-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Find a module…"
+              aria-label="Search modules"
+              className="h-9 border-sidebar-border bg-sidebar-accent/45 pl-9 text-xs shadow-none"
+            />
+          </div>
+        </div>
+      )}
+
+      <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 pb-5 space-y-5">
         {visibleGroups.map((group) => (
           <div key={group.title}>
             {!collapsed && (
-              <div className="px-3 pb-2 text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
+              <div className="px-3 pb-2 text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">
                 {group.title}
               </div>
             )}
@@ -150,12 +166,12 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
                     }}
                     title={collapsed ? item.label : undefined}
                     className={cn(
-                      "ams-nav-item ams-press group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm",
+                      "ams-nav-item ams-press group relative flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-sm font-medium",
                       active
-                        ? "bg-brand text-brand-foreground shadow-glow"
+                        ? "border-primary/25 bg-primary/12 text-foreground shadow-sm before:absolute before:-left-3 before:h-5 before:w-0.5 before:rounded-full before:bg-primary"
                         : item.accent
-                        ? "bg-brand/10 text-foreground hover:bg-brand/20"
-                        : "text-sidebar-foreground/80 hover:bg-white/5 hover:text-foreground"
+                        ? "border-primary/10 bg-primary/8 text-foreground hover:bg-primary/15"
+                        : "border-transparent text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-foreground"
                     )}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
@@ -163,12 +179,12 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
                       <>
                         <span className="truncate">{item.label}</span>
                         {item.badge != null && (
-                          <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-brand/20 text-brand-foreground">
+                          <span className="ml-auto min-w-5 rounded-full bg-primary/15 px-1.5 py-0.5 text-center text-[10px] text-primary">
                             {item.badge}
                           </span>
                         )}
                         {active && item.badge == null && (
-                          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white" />
+                          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
                         )}
                       </>
                     )}
@@ -213,7 +229,7 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-[width] duration-300",
+          "hidden lg:sticky lg:top-0 lg:flex h-dvh shrink-0 flex-col bg-sidebar/95 text-sidebar-foreground border-r border-sidebar-border backdrop-blur-xl transition-[width] duration-300",
           sidebarWidth
         )}
       >
@@ -229,14 +245,14 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setMobileOpen(false)}
-              className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+              className="lg:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
             />
             <motion.aside
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: "tween", duration: 0.25 }}
-              className="lg:hidden fixed inset-y-0 left-0 z-50 w-64 flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border"
+              className="lg:hidden fixed inset-y-0 left-0 z-50 w-[280px] flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border"
             >
               <div className="flex justify-end p-2">
                 <button
@@ -254,7 +270,7 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
 
       {/* Main column */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 flex items-center justify-between px-4 md:px-6 border-b border-border bg-surface/60 backdrop-blur-md sticky top-0 z-30">
+        <header className="h-14 flex items-center justify-between px-4 md:px-8 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-30">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setMobileOpen(true)}
@@ -263,28 +279,18 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
             >
               <Menu className="h-4 w-4" />
             </button>
-            {topbarTitle && (
-              <h2 className="text-sm font-semibold truncate text-foreground">{topbarTitle}</h2>
-            )}
+            <div className="hidden items-center gap-2 text-xs sm:flex">
+              <span className="text-muted-foreground">{activeGroup?.title ?? "Dashboard"}</span>
+              <span className="text-border">/</span>
+              {topbarTitle && <h2 className="truncate font-medium text-foreground">{topbarTitle}</h2>}
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            {showSearch && (
-              <div className="relative hidden w-64 md:block">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search modules…"
-                  aria-label="Search modules"
-                  className="h-9 pl-9 text-xs"
-                />
-              </div>
-            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   aria-label={`Notifications (${notifications.length})`}
-                  className="relative h-9 w-9 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-muted-foreground hover:text-foreground"
+                   className="icon3d relative flex h-9 w-9 items-center justify-center text-muted-foreground hover:text-foreground"
                 >
                   <Bell className="h-4 w-4" />
                   {notifications.length > 0 && (
@@ -321,7 +327,24 @@ export const UnifiedShell: React.FC<UnifiedShellProps> = ({
         </header>
 
         <main className="flex-1 overflow-auto ams-section-enter">
-          <div className="p-4 md:p-6">{children}</div>
+          <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+            <section className="hero-surface" aria-labelledby="page-title">
+              <div className="relative z-10 max-w-3xl">
+                <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
+                  <span>{activeGroup?.title ?? "Dashboard"}</span>
+                  <span className="text-muted-foreground">/</span>
+                  <span className="text-muted-foreground">Live operations</span>
+                </div>
+                <h1 id="page-title" className="text-2xl font-bold text-foreground sm:text-3xl lg:text-[34px]">
+                  {topbarTitle ?? brandTitle}
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                  Monitor delivery, workload and team operations with live, permission-aware data.
+                </p>
+              </div>
+            </section>
+            <div className="launchpad-content">{children}</div>
+          </div>
         </main>
 
         {footer}
